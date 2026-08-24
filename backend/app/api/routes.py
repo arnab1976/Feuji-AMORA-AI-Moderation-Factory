@@ -90,6 +90,72 @@ async def email_modernization_report(req: EmailReportRequest) -> dict[str, Any]:
     }
 
 
+class ValidateRepoRequest(BaseModel):
+    urls: list[str] | str
+    tech_name: str | None = None
+    category_id: str | None = None
+
+
+@router.post("/validate-repo")
+async def validate_repo_route(req: ValidateRepoRequest) -> dict[str, Any]:
+    """Validates real network reachability and filesystem paths for repository URLs/locations."""
+    import httpx, os, re
+    
+    raw_inputs = req.urls if isinstance(req.urls, list) else [req.urls]
+    lines = [line.strip() for line in raw_inputs if line and line.strip()]
+    
+    if not lines:
+        return {
+            "is_valid": False,
+            "message": "⚠️ Validation Failed: Repository location cannot be empty. Please enter a valid Git Repository URL or directory path.",
+        }
+
+    for line in lines:
+        scheme_match = re.match(r"^([a-zA-Z0-9+-.]+)://", line)
+        if scheme_match:
+            scheme = scheme_match[1].lower()
+            if scheme not in ("http", "https", "git", "ssh", "file"):
+                return {
+                    "is_valid": False,
+                    "invalid_line": line,
+                    "message": f"❌ Validation Failed: Unsupported URI protocol '{scheme}://'. Acceptable schemes are http://, https://, git://, ssh://, or file:// paths.",
+                }
+            
+            if scheme in ("http", "https"):
+                try:
+                    async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+                        response = await client.head(line)
+                        if response.status_code >= 400 and response.status_code != 405:
+                            response = await client.get(line, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                        
+                        if response.status_code >= 400:
+                            return {
+                                "is_valid": False,
+                                "invalid_line": line,
+                                "message": f"❌ Validation Failed (HTTP {response.status_code}): The repository URL '{line}' does not exist or returned error. Please check the URL.",
+                            }
+                except Exception as e:
+                    return {
+                        "is_valid": False,
+                        "invalid_line": line,
+                        "message": f"❌ Validation Failed: The repository URL '{line}' is unreachable or does not exist. (Error: {str(e)})",
+                    }
+        else:
+            if line.startswith("/") or line.startswith("./") or line.startswith("../") or re.match(r"^[a-zA-Z]:[\\/]", line):
+                clean_path = line.replace("file:///", "").replace("file://", "")
+                if not os.path.exists(clean_path):
+                    return {
+                        "is_valid": False,
+                        "invalid_line": line,
+                        "message": f"❌ Validation Failed: Local directory or file path '{line}' does not exist on disk.",
+                    }
+
+    return {
+        "is_valid": True,
+        "message": f"✓ Live Validation Successful: Web Crawler & Scanner verified {len(lines)} active, reachable source location(s).",
+    }
+
+
 class CreateRunBody(BaseModel):
     app_id: str = "polad"
 

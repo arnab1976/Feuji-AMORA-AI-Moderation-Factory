@@ -28,12 +28,6 @@ const FALLBACK_CHECKS: ChecklistItem[] = [
   { id: 'proj_ok', label: 'Confirm testing work remains under project «Convert old Fortran code to new Java based code...»', required: true },
 ]
 
-function truncate(text: string, n = 110): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
-
 export function G4TestApprovalStep({
   runId,
   gate,
@@ -53,21 +47,38 @@ export function G4TestApprovalStep({
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
   const a1Context = useMemo(
     () => ({
-      categoryName: intake?.category_name || intake?.category_id || '1. Legacy source-code data',
-      projectName:
-        intake?.project_name ||
-        'Convert old Fortran code to new Java based code. The business context or the outcome should be similar',
-      requirement:
-        intake?.requirement ||
-        'Modernizing the legacy Fortran code to a Java-based system is essential to enhance maintainability, improve integration with contemporary systems, and support cloud deployment.',
+      categoryName: intake?.category_name || intake?.category_id || '—',
+      projectName: intake?.project_name || '—',
+      requirement: intake?.requirement || '',
       strategies: intake?.strategies || [],
-      strategyShort: intake?.strategy_short || intake?.strategies?.[0] || 'Automated Incremental Migration',
+      strategyShort: intake?.strategy_short || intake?.strategies?.[0] || '—',
       why: intake?.why_modernize || '',
     }),
     [intake],
   )
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   const checklist: ChecklistItem[] = useMemo(() => {
     const source = brief?.checklist?.length ? brief.checklist : FALLBACK_CHECKS
@@ -181,9 +192,7 @@ export function G4TestApprovalStep({
           value: m.value,
         })),
       })
-      if (approved && !res.rewound_to) {
-        onContinueNext?.()
-      }
+      onDecided(approved ? null : res.rewound_to || 'A14')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e))
     } finally {
@@ -191,15 +200,9 @@ export function G4TestApprovalStep({
     }
   }
 
-  const title = brief?.title || 'Approve the testing'
-  const lede = brief?.lede || 'Is the testing thorough enough to trust?'
   const approvers = brief?.approvers || evidence?.approvers || 'QA lead'
   const why = brief?.why || evidence?.why || 'Weak tests here mean the equivalence check proves nothing.'
   const decided = Boolean(evidence?.decided)
-
-  const categoryDisplay = brief?.cards?.from_a1 || a1Context.categoryName
-  const strategyDisplay = brief?.cards?.strategy || a1Context.strategyShort
-  const requirementDisplay = brief?.cards?.requirement || a1Context.requirement
 
   const testMetrics = brief?.test_metrics?.length
     ? brief.test_metrics
@@ -209,111 +212,245 @@ export function G4TestApprovalStep({
       ]
 
   return (
-    <div className="g4-step step-page-content">
-      {/* Top Breadcrumb Header */}
-      <div className="g4-top-meta">
-        <span className="g4-breadcrumb">
-          DOMAIN E · TEST &amp; PROVE IT WORKS · GATE G4 · ACTIVE · ON PATH
-        </span>
-      </div>
-
-      <h1 className="g4-main-title">{title}</h1>
-      <p className="g4-lede">{lede}</p>
-
-      <div className="g4-meta-info">
-        <p className="g4-approvers-line">
-          <strong>Approvers:</strong> {approvers}
-        </p>
-        <p className="g4-why-line">{why}</p>
-      </div>
-
-      {/* 4 Context Cards Grid Matching Snapshot */}
-      <div className="g4-cards-grid">
-        <div className="g4-card">
-          <span className="g4-card-label">FROM A1</span>
-          <h3 className="g4-card-value">{categoryDisplay}</h3>
-        </div>
-
-        <div className="g4-card">
-          <span className="g4-card-label">STRATEGY</span>
-          <h3 className="g4-card-value">{strategyDisplay}</h3>
-        </div>
-
-        <div className="g4-card">
-          <span className="g4-card-label">REQUIREMENT</span>
-          <h3 className="g4-card-value">{truncate(requirementDisplay, 120)}</h3>
-        </div>
-
-        <div className="g4-card g4-card-map">
-          <span className="g4-card-label">MAP STATUS</span>
-          <div className="g4-map-circle-wrap">
-            <span className="g4-map-status-text">Active · on path</span>
-            <div className="g4-map-bg-circle" />
+    <div className="g4-step step-page-content mf-req">
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
           </div>
-        </div>
-      </div>
 
-      {/* Test Evidence Metric Displays */}
-      <div className="g4-metrics-list">
-        {testMetrics.map((m) => (
-          <div key={m.label} className="g4-metric-box">
-            <span className="g4-metric-label">{m.label}</span>
-            <h2 className="g4-metric-value">{m.value}</h2>
-          </div>
-        ))}
-      </div>
-
-      {/* Gate Checklist Section */}
-      {!decided && (
-        <ChecklistPanel
-          title={brief?.checklist_heading || 'OPERATOR CHECKLIST (OPTIONAL)'}
-          items={checklist}
-          checked={checked}
-          note={
-            brief?.checklist_note ||
-            'Checklist items combine the step’s standard controls with your A1 category, requirement, strategy, and the agent & gate map combination. These do not block Run — confirm them when useful, or use Confirm all.'
-          }
-          onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
-        />
-      )}
-
-      <p className="g4-reject-note">
-        What happens if you reject? The pipeline routes back to A14 Test generation and asks the agent to expand test coverage with your feedback.
-      </p>
-
-      {notice && <p className="a3-notice">{notice}</p>}
-      {error && <p className="err">{error}</p>}
-
-      {/* Decision Bar */}
-      {decided ? (
-        <div className="dash-run-row g0-run-row">
-          <button className="landing-start" type="button" onClick={() => onContinueNext?.()}>
-            {continueLabel || 'Continue to next step →'}
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
           </button>
-          <span className="g0-await-pill g1-approved-pill">✓ Gate approved</span>
         </div>
-      ) : (
-        <div className="dash-run-row g0-run-row">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR STEP
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              A16 · Self-healing
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              MOVEMENT PATH
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {brief?.movement_path || 'A14 Test generation -> A15 Triage -> A16 Self-healing -> G4'}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Automated test suite review & rule coverage sign-off.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 2. GOVERNANCE CONTROLS & TEST SUITE EVIDENCE (Single compact card) */}
+      <section className="g4-section" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ GOVERNANCE CONTROLS &amp; TEST SUITE EVIDENCE
+          </h4>
+          <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            Approver: {approvers}
+          </span>
+        </div>
+
+        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px', lineHeight: '1.4' }}>
+          {why}
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
+          {testMetrics.map((m) => (
+            <div key={m.label} style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase' }}>{m.label}</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#f8fafc' }}>{m.value}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. VERIFICATION CHECKLIST */}
+      <ChecklistPanel
+        title={brief?.checklist_heading || 'OPTIONAL / MANDATORY VERIFICATION CHECKLIST'}
+        gateId="G4"
+        gateName="Test Suite Generation Sign-Off"
+        items={checklist}
+        checked={checked}
+        note={brief?.checklist_note || 'Confirm each mandatory verification item before rendering the final G4 sign-off decision.'}
+        onAutoApproveGate={() => void decide(true)}
+        onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
+      />
+
+      {/* 4. HUMAN GOVERNANCE SIGN-OFF & APPROVAL DECISION (Form controls REMAIN VISIBLE post-decided) */}
+      <section className="g4-section" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '10px 0 10px 0' }}>
+        <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px 0' }}>
+          ⚙️ HUMAN GOVERNANCE SIGN-OFF &amp; APPROVAL DECISION
+        </h4>
+
+        {notice && <p style={{ fontSize: '11px', color: '#facc15', background: 'rgba(234,179,8,0.12)', padding: '6px 10px', borderRadius: '4px', margin: '0 0 8px' }}>{notice}</p>}
+        {error && <p style={{ fontSize: '11px', color: '#f87171', background: 'rgba(239,68,68,0.12)', padding: '6px 10px', borderRadius: '4px', margin: '0 0 8px' }}>{error}</p>}
+
+        <div className="dash-run-row g0-run-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
             className="landing-start g0-approve"
             type="button"
             disabled={busy || !checklistReady || briefLoading}
             onClick={() => void decide(true)}
+            style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
           >
-            {busy ? 'Saving decision…' : 'Approve testing and continue →'}
+            {busy ? 'Saving decision…' : '▶ Approve — Continue Next Agent: A17 Equivalence Testing Agent →'}
           </button>
           <button
             className="g0-reject"
             type="button"
             disabled={busy || briefLoading}
             onClick={() => void decide(false)}
+            style={{ fontSize: '12.5px', fontWeight: 700, padding: '8px 14px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5', borderRadius: '5px', cursor: 'pointer' }}
           >
-            ✕ Request changes
+            ✕ Request Changes (Rewind to A14)
           </button>
-          <span className="g0-await-pill">
-            {!checklistReady ? 'Confirm mandatory checklist items' : 'Awaiting your decision'}
-          </span>
+          {decided && (
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              ✓ Gate G4 Approved
+            </span>
+          )}
         </div>
+      </section>
+
+      {/* 5. IN-PLACE OUTPUT & SIGN-OFF RECORD (Renders below governance controls) */}
+      {decided && (
+        <section className="g4-results-panel" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: '8px', margin: '10px 0 0 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              📊 GOVERNANCE SIGN-OFF RECORD &amp; AUDIT TRAIL
+            </h4>
+            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+              G4 SIGN-OFF VERIFIED
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase' }}>STATUS</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#4ade80' }}>Approved</span>
+            </div>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase' }}>SIGN-OFF BY</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#f8fafc' }}>{approvers}</span>
+            </div>
+          </div>
+
+          <div className="dash-run-row a3-run-row a10-continue-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+            {onContinueNext ? (
+              <button className="landing-start" type="button" onClick={onContinueNext} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+                {continueLabel || '▶ Move Forward to A17: Equivalence Testing Agent →'}
+              </button>
+            ) : null}
+          </div>
+        </section>
       )}
     </div>
   )

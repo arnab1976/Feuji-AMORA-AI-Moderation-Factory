@@ -36,7 +36,11 @@ import { G8SwitchOffApprovalStep } from '../components/G8SwitchOffApprovalStep'
 import { AgentHeaderBanner } from '../components/AgentHeaderBanner'
 import { HumanGateStep } from '../components/HumanGateStep'
 import { PipelineAgentStep } from '../components/PipelineAgentStep'
+import { A11DataModernizationStep } from '../components/A11DataModernizationStep'
+import { A15FailureTriageStep } from '../components/A15FailureTriageStep'
+import { ExecutiveIterationHeader } from '../components/ExecutiveIterationHeader'
 import { FinalShowcaseView } from './FinalShowcaseView'
+import { AgentGateSynthesisView } from './AgentGateSynthesisView'
 
 const DOMAIN_SHORT: Record<string, string> = {
   A: 'Factory setup',
@@ -86,7 +90,23 @@ export function WorkspaceView({
   const current = sequence[cursor]
   const doneCount = nodes.filter((n) => n.done).length
   const [formResetKey, setFormResetKey] = useState(0)
+  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(
+    () => new Set(['A', 'B', 'C', 'D', 'E', 'F']),
+  )
+
+  const toggleDomainExpand = useCallback((domKey: string) => {
+    setExpandedDomains((prev) => {
+      const next = new Set(prev)
+      if (next.has(domKey)) {
+        next.delete(domKey)
+      } else {
+        next.add(domKey)
+      }
+      return next
+    })
+  }, [])
   const [showPathMap, setShowPathMap] = useState(false)
+  const [showSynthesisView, setShowSynthesisView] = useState(false)
   const [showFinalShowcase, setShowFinalShowcase] = useState(false)
   const [pathMapIntake, setPathMapIntake] = useState<PathMapIntakeSnapshot | null>(null)
   const [vetoedIds, setVetoedIds] = useState<string[]>([])
@@ -178,12 +198,15 @@ export function WorkspaceView({
     return null
   }, [cursor, sequence, vetoedIds, skippedIds, activePathIds])
 
-  const continueLabel =
-    current?.id === 'A1' && !activePathIds.length
-      ? 'Continue to Agent & gate map →'
-      : nextOnPath
-        ? `Continue to ${nextOnPath.id} →`
-        : 'Continue to next step →'
+  const continueLabel = useMemo(() => {
+    if (current?.id === 'A1' && !activePathIds.length) {
+      return '▶ Move Forward to Agent & Gate Map →'
+    }
+    if (nextOnPath) {
+      return `▶ Move Forward to ${nextOnPath.id}: ${nextOnPath.name} →`
+    }
+    return '▶ Move Forward to Next Agent →'
+  }, [current?.id, activePathIds.length, nextOnPath])
 
   const activeLegacyLang = useMemo(() => {
     const req = pathMapIntake?.requirement || intake?.requirement || ''
@@ -310,7 +333,8 @@ export function WorkspaceView({
           return
         }
       }
-      setShowFinalShowcase(true)
+      setShowFinalShowcase(false)
+      setShowSynthesisView(true)
     },
     [vetoedIds, skippedIds, sequence, nodes, onSelect],
   )
@@ -420,9 +444,19 @@ export function WorkspaceView({
   }, [runId, current])
 
   useEffect(() => {
+    if (current?.domain) {
+      setExpandedDomains((prev) => {
+        if (!prev.has(current.domain)) {
+          const next = new Set(prev)
+          next.add(current.domain)
+          return next
+        }
+        return prev
+      })
+    }
     currentPipeRef.current?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
     currentStepRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [cursor, nodes])
+  }, [cursor, nodes, current?.domain])
 
   if (showPathMap) {
     return (
@@ -443,44 +477,72 @@ export function WorkspaceView({
 
   return (
     <div className="dash mf-attractive">
-      <header className="dash-top">
-        <div className="dash-wrap dash-hr mf-top-hr">
-          <div className="landing-logo">
-            <span className="landing-mark amora-mark">A</span>
-            <div>
-              <strong>AMORA</strong>
-              <p>AI Modernization Orchestration & Rebuild Agents</p>
+      {/* Sticky Frozen Top Pane (Logo Header + Agent Movement Path) */}
+      <div
+        className="mf-sticky-top-freeze"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000,
+          background: 'rgba(6, 9, 17, 0.96)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(56, 189, 248, 0.35)',
+          boxShadow: '0 6px 24px rgba(0, 0, 0, 0.6)',
+        }}
+      >
+        <header className="dash-top">
+          <div className="dash-wrap dash-hr mf-top-hr">
+            <div className="landing-logo">
+              <span className="landing-mark amora-mark">A</span>
+              <div>
+                <strong>AMORA</strong>
+                <p>AI Modernization Orchestration &amp; Rebuild Agents</p>
+              </div>
+            </div>
+
+            <p className="mf-top-tagline">
+              Live run · click through <b>{counts.agents}</b> AI agents ·{' '}
+              <b>{counts.gates}</b> human approval gates · plain English throughout
+            </p>
+
+            <div className="dash-nav-btns">
+              <button className="landing-ghost dash-top-btn" type="button" onClick={goBackOneStep}>
+                ← Back
+              </button>
+              <button className="landing-ghost dash-top-btn" type="button" onClick={editIntake}>
+                Edit intake
+              </button>
+              <button className="landing-ghost dash-top-btn" type="button" onClick={resetWorkspaceForm}>
+                Reset
+              </button>
+              <button className="landing-start dash-top-btn" type="button" onClick={onHome}>
+                Home
+              </button>
             </div>
           </div>
-
-          <p className="mf-top-tagline">
-            Live run · click through <b>{counts.agents}</b> AI agents ·{' '}
-            <b>{counts.gates}</b> human approval gates · plain English throughout
-          </p>
-
-          <div className="dash-nav-btns">
-            <button className="landing-ghost dash-top-btn" type="button" onClick={goBackOneStep}>
-              ← Back
-            </button>
-            <button className="landing-ghost dash-top-btn" type="button" onClick={editIntake}>
-              Edit intake
-            </button>
-            <button className="landing-ghost dash-top-btn" type="button" onClick={resetWorkspaceForm}>
-              Reset
-            </button>
-            <button className="landing-start dash-top-btn" type="button" onClick={onHome}>
-              Home
-            </button>
-          </div>
+        </header>
+        {pathTrail}
+        
+        {/* Sticky Project Title Bar (Permanently Pinned Top Header) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 16px', background: 'rgba(15, 23, 42, 0.95)', borderTop: '1px solid rgba(56, 189, 248, 0.25)', fontSize: '11.5px' }}>
+          <span style={{ fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+            📁 PROJECT TITLE:
+          </span>
+          <span style={{ fontWeight: 700, color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {projectName || pathMapIntake?.project_name || (intake && typeof intake === 'object' && 'project_name' in intake ? String(intake.project_name) : '') || 'Implement GDPR-compliant data privacy protection controls in sensitive databases.'}
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: '10.5px', fontWeight: 800, color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', padding: '2px 8px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+            {current?.id ? `${current.id} · ${current.name}` : 'AMORA Modernization'}
+          </span>
         </div>
-      </header>
-      {pathTrail}
+      </div>
 
       <div className="dash-wrap dash-shell" style={{ marginTop: '10px' }}>
-        <div className="dash-grid mf-full-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 280px) 1fr', gap: '16px', alignItems: 'start' }}>
+        <div className="dash-grid mf-full-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 290px) 1fr', gap: '16px', alignItems: 'start' }}>
           
           {/* ---- LEFT PANEL SIDEBAR: SIX WORK DOMAINS ---- */}
-          <aside className="dash-col dash-side mf-left-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <aside className="dash-col dash-side mf-left-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'sticky', top: '110px', maxHeight: 'calc(100vh - 125px)', overflowY: 'auto' }}>
             <div
               className="dash-card mf-domains-card-side"
               style={{
@@ -501,52 +563,183 @@ export function WorkspaceView({
               </div>
 
               <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {domainProgress.map((d) => (
-                  <li key={d.key}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const first = sequence.findIndex((s) => s.domain === d.key)
-                        if (first >= 0 && nodes[first]?.unlocked) onSelect(first)
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        padding: '8px 10px',
-                        background: d.active ? 'rgba(234, 179, 8, 0.15)' : 'rgba(30, 41, 59, 0.5)',
-                        border: d.active ? '1px solid #eab308' : '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#eab308', background: 'rgba(234, 179, 8, 0.2)', width: '20px', height: '20px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {d.key}
-                        </span>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc' }}>{d.short}</span>
-                      </div>
-                      <span style={{ fontSize: '11px', color: d.done === d.total && d.total ? '#4ade80' : '#94a3b8', fontWeight: 800 }}>
-                        {d.done}/{d.total} {d.done === d.total && d.total ? '✓' : ''}
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                {domainProgress.map((d) => {
+                  const isExpanded = expandedDomains.has(d.key)
+                  const domainSteps = sequence
+                    .map((step, index) => ({ step, index }))
+                    .filter(({ step }) => step.domain === d.key)
+
+                  return (
+                    <li key={d.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleDomainExpand(d.key)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          padding: '8px 10px',
+                          background: d.active ? 'rgba(234, 179, 8, 0.18)' : 'rgba(30, 41, 59, 0.6)',
+                          border: d.active ? '1px solid #eab308' : '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 900, color: '#eab308', background: 'rgba(234, 179, 8, 0.2)', width: '20px', height: '20px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {d.key}
+                          </span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>{d.short}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', color: d.done === d.total && d.total ? '#4ade80' : '#94a3b8', fontWeight: 800 }}>
+                            {d.done}/{d.total} {d.done === d.total && d.total ? '✓' : ''}
+                          </span>
+                          <span style={{ fontSize: '10px', color: '#38bdf8' }}>
+                            {isExpanded ? '▼' : '▶'}
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Cascaded List of Agents & Human Gates under this domain */}
+                      {isExpanded && domainSteps.length > 0 && (
+                        <ul style={{ listStyle: 'none', margin: '2px 0 6px 10px', padding: '0 0 0 8px', borderLeft: '2px solid rgba(56, 189, 248, 0.25)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {domainSteps.map(({ step, index }) => {
+                            const isCurrentStep = index === cursor
+                            const stepNode = nodes[index]
+                            const isStepDone = Boolean(stepNode?.done)
+                            const isGate = step.kind === 'gate'
+
+                            return (
+                              <li key={step.id} ref={isCurrentStep ? (currentStepRef as React.RefObject<HTMLLIElement>) : null}>
+                                <button
+                                  type="button"
+                                  onClick={() => onSelect(index)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    width: '100%',
+                                    padding: '5px 8px',
+                                    background: isCurrentStep
+                                      ? 'rgba(56, 189, 248, 0.2)'
+                                      : isStepDone
+                                      ? 'rgba(34, 197, 94, 0.08)'
+                                      : 'rgba(15, 23, 42, 0.45)',
+                                    border: isCurrentStep
+                                      ? '1px solid #38bdf8'
+                                      : isStepDone
+                                      ? '1px solid rgba(34, 197, 94, 0.3)'
+                                      : '1px solid rgba(255, 255, 255, 0.05)',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: isCurrentStep ? '0 0 10px rgba(56, 189, 248, 0.25)' : 'none',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', minWidth: 0 }}>
+                                    <span
+                                      style={{
+                                        fontSize: '10px',
+                                        fontWeight: 900,
+                                        color: isGate ? '#f472b6' : '#38bdf8',
+                                        background: isGate ? 'rgba(244, 114, 182, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                                        padding: '2px 5px',
+                                        borderRadius: '3px',
+                                        minWidth: '22px',
+                                        textAlign: 'center',
+                                      }}
+                                    >
+                                      {step.id}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: '11px',
+                                        fontWeight: isCurrentStep ? 700 : 500,
+                                        color: isCurrentStep ? '#38bdf8' : isStepDone ? '#cbd5e1' : '#94a3b8',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                      title={step.name}
+                                    >
+                                      {step.name}
+                                    </span>
+                                  </div>
+
+                                  {isCurrentStep ? (
+                                    <span style={{ fontSize: '9px', fontWeight: 900, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.25)', padding: '1px 5px', borderRadius: '3px', flexShrink: 0 }}>
+                                      ACTIVE
+                                    </span>
+                                  ) : isStepDone ? (
+                                    <span style={{ fontSize: '10px', fontWeight: 800, color: '#4ade80', flexShrink: 0 }}>
+                                      ✓
+                                    </span>
+                                  ) : isGate ? (
+                                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#f472b6', flexShrink: 0 }}>
+                                      GATE
+                                    </span>
+                                  ) : null}
+                                </button>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  )
+                })}
               </ol>
             </div>
           </aside>
 
           {/* ---- MAIN WORKSPACE AREA ---- */}
-          {showFinalShowcase ? (
+          {showSynthesisView ? (
+            <div style={{ width: '100%' }}>
+              <AgentGateSynthesisView
+                projectName={String(pathMapIntake?.project_name || (typeof intake?.project_name === 'string' ? intake.project_name : '') || projectName || 'Modernization Initiative')}
+                requirement={String(pathMapIntake?.requirement || (typeof intake?.requirement === 'string' ? intake.requirement : '') || '')}
+                strategyShort={String(pathMapIntake?.strategy_short || (typeof intake?.strategy_short === 'string' ? intake.strategy_short : '') || '')}
+                activeLegacyLang={activeLegacyLang}
+                intakeCategory={String(pathMapIntake?.category_id || (typeof intake?.category_id === 'string' ? intake.category_id : '') || '')}
+                runState={runState}
+                nodes={nodes}
+                sequence={sequence}
+                activePathIds={activePathIds}
+                vetoedIds={vetoedIds}
+                skippedIds={skippedIds}
+                counts={counts}
+                onBackToWorkspace={() => setShowSynthesisView(false)}
+                onProceedToFinalShowcase={() => {
+                  setShowSynthesisView(false)
+                  setShowFinalShowcase(true)
+                }}
+                onResetIntake={resetWorkspaceForm}
+              />
+            </div>
+          ) : showFinalShowcase ? (
             <div style={{ width: '100%' }}>
               <FinalShowcaseView
-                projectName={String(pathMapIntake?.project_name || (typeof intake?.project_name === 'string' ? intake.project_name : '') || projectName || 'Insurance Fraud Modelling')}
-                requirement={String(pathMapIntake?.requirement || (typeof intake?.requirement === 'string' ? intake.requirement : '') || 'Modernizing legacy SAS code to Python for Insurance Fraud Modelling')}
-                strategyShort={String(pathMapIntake?.strategy_short || (typeof intake?.strategy_short === 'string' ? intake.strategy_short : '') || 'Code Modernization to Python')}
+                projectName={String(pathMapIntake?.project_name || (typeof intake?.project_name === 'string' ? intake.project_name : '') || projectName || 'Modernization Initiative')}
+                requirement={String(pathMapIntake?.requirement || (typeof intake?.requirement === 'string' ? intake.requirement : '') || '')}
+                strategyShort={String(pathMapIntake?.strategy_short || (typeof intake?.strategy_short === 'string' ? intake.strategy_short : '') || '')}
                 activeLegacyLang={activeLegacyLang}
+                intakeCategory={String(pathMapIntake?.category_id || (typeof intake?.category_id === 'string' ? intake.category_id : '') || '')}
+                runState={runState}
+                nodes={nodes}
+                sequence={sequence}
+                activePathIds={activePathIds}
+                vetoedIds={vetoedIds}
+                skippedIds={skippedIds}
+                counts={counts}
                 onBackToWorkspace={() => setShowFinalShowcase(false)}
+                onViewSynthesis={() => {
+                  setShowFinalShowcase(false)
+                  setShowSynthesisView(true)
+                }}
                 onResetIntake={resetWorkspaceForm}
               />
             </div>
@@ -567,6 +760,17 @@ export function WorkspaceView({
                   intakeRequirement={String(pathMapIntake?.requirement || (typeof intake?.requirement === 'string' ? intake.requirement : '') || '')}
                 />
               )}
+              
+              {/* Executive Iteration Output & Strategy Benefit Banner for Every Step */}
+              <ExecutiveIterationHeader
+                stepId={current?.id || ''}
+                stepName={current?.name || ''}
+                activeLegacyLang={activeLegacyLang}
+                projectName={projectName || pathMapIntake?.project_name}
+                intakeRequirement={pathMapIntake?.requirement}
+                isDone={Boolean(nodes[cursor]?.done)}
+              />
+
               <section className="dash-card dash-step-card mf-main-card">
               {current?.kind === 'agent' ? (
                 <AgentStep
@@ -580,11 +784,6 @@ export function WorkspaceView({
                   onPathMapIntake={setPathMapIntake}
                   onComplete={async () => {
                     await onRefresh()
-                    if (current?.id === 'A1') {
-                      openPathMapAfterA1()
-                      return
-                    }
-                    advanceToNextOpen(cursor)
                   }}
                   onA1Results={onA1Results}
                   continueLabel={continueLabel}
@@ -924,6 +1123,18 @@ function AgentStep({
           continueLabel={continueLabel}
           onContinueNext={onContinueNext}
         />
+      ) : agent.id === 'A11' ? (
+        <A11DataModernizationStep
+          key={`a11-${runId}-${formResetKey}`}
+          runId={runId}
+          done={done}
+          formResetKey={formResetKey}
+          intake={pathMapIntake}
+          onComplete={onComplete}
+          onResults={onA1Results}
+          continueLabel={continueLabel}
+          onContinueNext={onContinueNext}
+        />
       ) : agent.id === 'A12' ? (
         <A12CodeGenerationStep
           key={`a12-${runId}-${formResetKey}`}
@@ -951,6 +1162,18 @@ function AgentStep({
       ) : agent.id === 'A14' ? (
         <A14TestGenerationStep
           key={`a14-${runId}-${formResetKey}`}
+          runId={runId}
+          done={done}
+          formResetKey={formResetKey}
+          intake={pathMapIntake}
+          onComplete={onComplete}
+          onResults={onA1Results}
+          continueLabel={continueLabel}
+          onContinueNext={onContinueNext}
+        />
+      ) : agent.id === 'A15' ? (
+        <A15FailureTriageStep
+          key={`a15-${runId}-${formResetKey}`}
           runId={runId}
           done={done}
           formResetKey={formResetKey}

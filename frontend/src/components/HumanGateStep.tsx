@@ -102,7 +102,7 @@ export function HumanGateStep({
       setEvidence(ev)
       onEvidence(ev)
       if (approved && !res.rewound_to) {
-        onContinueNext?.()
+        /* Decision saved in-place — user clicks continueLabel when ready */
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e))
@@ -113,17 +113,9 @@ export function HumanGateStep({
 
   const body = (
     <>
-      <p className="dash-kicker">
-        Domain {gate.domain} · {domainLabel} · Gate {gate.id}
-        {brief ? ` · ${brief.path_status_label}` : ''}
-      </p>
-      <h2 className="dash-title">{evidence?.name || brief?.title || gate.name}</h2>
-      <p className="dash-lede">{evidence?.question || brief?.lede}</p>
-      {evidence && <p className="dash-sub">Approvers: {evidence.approvers}</p>}
-      {evidence?.why && <p className="dash-sub">{evidence.why}</p>}
 
       {brief && (
-        <div className="step-context">
+        <div className="step-context" style={{ padding: '8px 12px', margin: '0 0 10px' }}>
           <div>
             <b>From A1</b>
             <span>{brief.context.category_name || '—'}</span>
@@ -153,7 +145,7 @@ export function HumanGateStep({
       )}
 
       {evidence && (
-        <div className="dash-evidence">
+        <div className="dash-evidence" style={{ margin: '0 0 10px' }}>
           {evidence.evidence.map((e) => (
             <div key={e.label} className="dash-evr">
               <b>{e.label}</b>
@@ -172,6 +164,9 @@ export function HumanGateStep({
           checked={checked}
           disabled={Boolean(evidence?.decided)}
           note={brief.note}
+          gateId={gate.id}
+          gateName={gate.name}
+          onAutoApproveGate={() => void decide(true)}
           onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
         />
       )}
@@ -181,10 +176,10 @@ export function HumanGateStep({
       {evidence?.decided || skipped ? (
         <div className="dash-run-row">
           <p className="dash-empty">
-            {skipped ? 'Skipped on the path map.' : 'Already decided. Continue to the next step.'}
+            {skipped ? 'Skipped on the path map.' : 'Gate approved. Proceed when ready.'}
           </p>
           <button className="landing-start" type="button" onClick={() => onContinueNext?.()}>
-            {continueLabel || 'Continue to next step →'}
+            {continueLabel || '▶ Move Forward to Next Agent →'}
           </button>
         </div>
       ) : (
@@ -195,7 +190,7 @@ export function HumanGateStep({
             disabled={busy || !checklistReady}
             onClick={() => void decide(true)}
           >
-            {busy ? 'Saving…' : 'Approve and continue'}
+            {busy ? 'Saving Approval…' : `✓ ${continueLabel ? continueLabel.replace('▶ Move Forward to', 'Approve — Move Forward to') : 'Approve — Move Forward to Next Agent'}`}
           </button>
           <button
             className="landing-ghost"

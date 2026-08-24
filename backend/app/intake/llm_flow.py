@@ -6508,8 +6508,8 @@ async def generate_g5_brief(
     path_ids = [str(x) for x in (path_active_ids or []) if x]
     services = [str(x) for x in (service_names or []) if x]
 
-    req_short = req[:110] + ("…" if len(req) > 110 else "")
-    proj_short = proj[:100] + ("…" if len(proj) > 100 else "")
+    req_short = req
+    proj_short = proj
 
     fallback_checklist = [
         {"id": "c1", "label": "I confirm match rate meets the business bar for go-live risk", "required": True},
@@ -6954,8 +6954,8 @@ async def generate_g6_brief(
     path_ids = [str(x) for x in (path_active_ids or []) if x]
     services = [str(x) for x in (service_names or []) if x]
 
-    req_short = req[:110] + ("…" if len(req) > 110 else "")
-    proj_short = proj[:100] + ("…" if len(proj) > 100 else "")
+    req_short = req
+    proj_short = proj
 
     fallback_checklist = [
         {"id": "c1", "label": "I confirm no high / critical security findings remain", "required": True},
@@ -7179,8 +7179,8 @@ async def generate_g7_brief(
     path_ids = [str(x) for x in (path_active_ids or []) if x]
     services = [str(x) for x in (service_names or []) if x]
 
-    req_short = req[:110] + ("…" if len(req) > 110 else "")
-    proj_short = proj[:100] + ("…" if len(proj) > 100 else "")
+    req_short = req
+    proj_short = proj
 
     fallback_checklist = [
         {"id": "c1", "label": "I approve the staged handover plan", "required": True},
@@ -7404,8 +7404,8 @@ async def generate_g8_brief(
     path_ids = [str(x) for x in (path_active_ids or []) if x]
     services = [str(x) for x in (service_names or []) if x]
 
-    req_short = req[:110] + ("…" if len(req) > 110 else "")
-    proj_short = proj[:100] + ("…" if len(proj) > 100 else "")
+    req_short = req
+    proj_short = proj
 
     fallback_checklist = [
         {"id": "c1", "label": "I confirm parallel run duration met business threshold (30 days clean)", "required": True},

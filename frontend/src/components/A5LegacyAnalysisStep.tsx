@@ -43,11 +43,7 @@ const FALLBACK_FOCUS: [string, string][] = [
   ['schema', 'Schema / file I-O boundaries'],
 ]
 
-function truncate(text: string, n = 160): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
+
 
 function fmtNum(n: number): string {
   return n.toLocaleString()
@@ -90,6 +86,27 @@ export function A5LegacyAnalysisStep({
       why: intake?.why_modernize || '',
     }
   }, [intake])
+
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   useEffect(() => {
     let cancelled = false
@@ -219,13 +236,12 @@ export function A5LegacyAnalysisStep({
   }
 
   function applySuggested() {
-    if (!brief) return
-    setDepth(brief.suggested_depth || 'full')
-    setFocus(
-      brief.suggested_focus?.length
-        ? [...brief.suggested_focus]
-        : ['calls', 'dataflow', 'risky'],
-    )
+    const targetDepth = brief?.suggested_depth || 'full'
+    const targetFocus = brief?.suggested_focus?.length
+      ? [...brief.suggested_focus]
+      : ['calls', 'dataflow', 'risky']
+    setDepth(targetDepth)
+    setFocus(targetFocus)
     setRunComplete(false)
   }
 
@@ -318,110 +334,185 @@ export function A5LegacyAnalysisStep({
     }
   }
 
-  const title = brief?.title || 'Legacy code analysis'
-  const lede =
-    brief?.lede ||
-    'Digs deep into the old code and builds a map of how everything connects — every function, every call, every data flow.'
-  const formHeading = brief?.form_heading || 'Set the analysis lens'
   const depthLabel = brief?.depth_label || 'How deeply should we read the code?'
-  const depthHint =
-    brief?.depth_hint ||
-    'Full analysis traces every call and data flow. Structure-only is faster.'
   const focusLabel = brief?.focus_label || 'What should analysis prioritise?'
-  const focusHint =
-    brief?.focus_hint ||
-    'Choose work that continues what the prior agent already inventoried.'
 
   return (
     <div className="a5-step a1-wizard mf-req">
-      <p className="dash-kicker">Domain B · Understand the old code · Step A5</p>
-      <h2 className="dash-title">{briefLoading ? 'Legacy code analysis' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Personalizing analysis from A1, the movement path, and the immediate prior agent…'
-          : lede}
-      </p>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context a5-context" style={{ padding: '6px 10px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '6px', margin: '0 0 6px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <h4 style={{ fontSize: '11.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '9.5px',
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <section className="a2-a1-context a5-context" aria-label="A1 and prior agent context">
-        <div className="a2-a1-context-head">
-          <h4>Domain Level Intake &amp; Context Matrix</h4>
-          <span className="a2-a1-lock">Shapes this analysis</span>
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 800,
+              padding: '2px 8px',
+              borderRadius: '4px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
-        <p className="dash-sub a2-a1-intro">
-          Focus areas stay semantically close to what the immediate prior agent finished, and A5
-          only appears on the map and movement path when the A1 combination requires it.
-        </p>
-        <dl className="a2-a1-grid">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', background: 'rgba(15, 23, 42, 0.45)', padding: '6px 8px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div>
-            <dt>Category</dt>
-            <dd>{a1Context.categoryName}</dd>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '2px 5px', borderRadius: '4px', fontSize: '11px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Application / title</dt>
-            <dd>{a1Context.projectName}</dd>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '2px 5px', borderRadius: '4px', fontSize: '11px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Strategy</dt>
-            <dd>
-              {a1Context.strategies.length > 1
-                ? a1Context.strategies.join(' · ')
-                : a1Context.strategyShort}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '2px 5px', borderRadius: '4px', fontSize: '11px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Prior agent</dt>
-            <dd>
-              {brief?.prior_agent_id || 'A4'}
-              {brief?.prior_agent_name ? ` · ${brief.prior_agent_name}` : ''}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              PRIOR AGENT
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#cbd5e1' }}>
+              {brief?.prior_agent_id || 'A4'} {brief?.prior_agent_name ? `· ${brief.prior_agent_name}` : '· Repository discovery'}
+            </span>
           </div>
-          {brief?.prior_line ? (
-            <div className="a2-a1-why">
-              <dt>Continuity</dt>
-              <dd>{brief.prior_line}</dd>
-            </div>
-          ) : null}
-          {a1Context.requirement ? (
-            <div className="a2-a1-why">
-              <dt>Requirement / trend</dt>
-              <dd>{truncate(a1Context.requirement)}</dd>
-            </div>
-          ) : null}
-          {brief?.analysis_summary ? (
-            <div className="a2-a1-why">
-              <dt>Analysis plan</dt>
-              <dd>{brief.analysis_summary}</dd>
-            </div>
-          ) : null}
-          {brief?.discovery_repos?.length ? (
-            <div className="a2-a1-why">
-              <dt>From prior inventory</dt>
-              <dd>{brief.discovery_repos.slice(0, 3).join(' · ')}</dd>
-            </div>
-          ) : null}
-        </dl>
-        {brief?.context_line ? <p className="a2-context-chip">{brief.context_line}</p> : null}
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '1px' }}>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              CONTINUITY
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.3' }}>
+              {brief?.prior_line || 'We continue from A4 with an emphasis on the repository and dependency insights gathered.'}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '1px' }}>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.3' }}>
+                {editRequirement || a1Context.requirement || 'Modernizing legacy code to Python.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 5px', borderRadius: '4px', fontSize: '11px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '1px' }}>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              ANALYSIS PLAN
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.3' }}>
+              {brief?.analysis_summary || 'A thorough structural analysis will identify critical components and dependencies for effective migration.'}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '1px', paddingTop: '3px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1px' }}>
+              FROM PRIOR INVENTORY
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#38bdf8' }}>
+              {brief?.discovery_repos?.length ? brief.discovery_repos.join(' · ') : 'https://github.com/sassoftware/sas-code-examples'}
+            </span>
+          </div>
+        </div>
       </section>
 
-      {!runComplete ? (
-        <>
-          <div className="a3-rules-head a5-form-head">
-            <h3>{formHeading}</h3>
-            {brief?.suggested_depth ? (
-              <button
-                type="button"
-                className="landing-ghost a3-suggest-btn"
-                onClick={applySuggested}
-              >
-                Apply LLM suggestions
-              </button>
-            ) : null}
-          </div>
+      {/* 2. EXECUTION CONTROLS & ANALYSIS LENS (Single rich compact card) */}
+      <section className="a5-execution-controls-card" style={{ padding: '6px 10px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '6px', margin: '0 0 6px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <h4 style={{ fontSize: '11.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ EXECUTION CONTROLS &amp; ANALYSIS LENS
+          </h4>
+          <button
+            type="button"
+            className="landing-ghost a3-suggest-btn"
+            style={{ padding: '2px 6px', fontSize: '10.5px' }}
+            onClick={applySuggested}
+          >
+            Apply LLM suggestions
+          </button>
+        </div>
 
-          <section className="a4-form-card a5-form-card">
-            <h4>{depthLabel}</h4>
-            <p className="a4-field-hint">{depthHint}</p>
-            <div className="a3-pills" role="radiogroup" aria-label={depthLabel}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {depthLabel}
+            </span>
+            <div className="a3-pills" role="radiogroup" aria-label={depthLabel} style={{ gap: '4px' }}>
               {depthOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -433,17 +524,19 @@ export function A5LegacyAnalysisStep({
                     setRunComplete(false)
                   }}
                   disabled={briefLoading}
+                  style={{ padding: '3px 8px', fontSize: '11px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
+          </div>
 
-          <section className="a4-form-card a5-form-card">
-            <h4>{focusLabel}</h4>
-            <p className="a4-field-hint">{focusHint}</p>
-            <div className="a3-pills" role="group" aria-label={focusLabel}>
+          <div>
+            <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {focusLabel}
+            </span>
+            <div className="a3-pills" role="group" aria-label={focusLabel} style={{ gap: '4px' }}>
               {focusOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -452,42 +545,36 @@ export function A5LegacyAnalysisStep({
                   aria-pressed={focus.includes(id)}
                   onClick={() => toggleFocus(id)}
                   disabled={briefLoading}
+                  style={{ padding: '3px 8px', fontSize: '11px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
-
-          {error && <p className="err">{error}</p>}
-
-          <div className="dash-run-row a3-run-row">
-            <button
-              className="landing-start"
-              type="button"
-              disabled={!canRun || busy}
-              onClick={() => void runAgent()}
-            >
-              {busy
-                ? 'Running…'
-                : done
-                  ? '▶ Run this agent again'
-                  : '▶ Run deep code analysis'}
-            </button>
-            <button
-              type="button"
-              className="landing-ghost"
-              disabled={busy}
-              onClick={() => onContinueNext?.()}
-            >
-              Skip →
-            </button>
-            {!canRun && blockerHint ? (
-              <span className="dash-sub a2-blocker-hint">{blockerHint}</span>
-            ) : null}
           </div>
-        </>
-      ) : null}
+        </div>
+      </section>
+
+      {error && <p className="err">{error}</p>}
+
+      <div className="dash-run-row a3-run-row" style={{ marginBottom: '6px' }}>
+        <button
+          className="landing-start"
+          type="button"
+          disabled={!canRun || busy}
+          onClick={() => void runAgent()}
+          style={{ fontSize: '11.5px', fontWeight: 800, padding: '6px 12px' }}
+        >
+          {busy
+            ? 'Running…'
+            : done || runComplete
+              ? '▶ Run this agent again'
+              : '▶ Run deep code analysis'}
+        </button>
+        {!canRun && blockerHint ? (
+          <span className="dash-sub a2-blocker-hint">{blockerHint}</span>
+        ) : null}
+      </div>
 
       {runComplete && structure ? (
         <section className="a5-results" aria-live="polite">
@@ -558,7 +645,7 @@ export function A5LegacyAnalysisStep({
 
           <div className="a5-footer">
             <button className="landing-start" type="button" onClick={() => onContinueNext?.()}>
-              {continueLabel || 'Continue to next step →'}
+              {continueLabel || '▶ Move Forward to A8: Runtime Behaviour Agent →'}
             </button>
             <span className="a5-complete-pill">✓ Step complete</span>
           </div>

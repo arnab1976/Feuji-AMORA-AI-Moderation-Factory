@@ -53,11 +53,7 @@ const FALLBACK_DEPTH: [string, string][] = [
   ['deep', 'Deep — runbooks, full graph, publish pack'],
 ]
 
-function truncate(text: string, n = 160): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
+
 
 function fmt(n: number): string {
   return n.toLocaleString()
@@ -94,7 +90,8 @@ export function A7DocumentationStep({
   const [depth, setDepth] = useState('standard')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [, setRunComplete] = useState(false)
+  const [runComplete, setRunComplete] = useState(false)
+  const [hasExtracted, setHasExtracted] = useState(done)
   const [log, setLog] = useState<LogLine[]>([])
   const [documents, setDocuments] = useState<DocStat[]>([])
   const [kg, setKg] = useState<KnowledgeGraph | null>(null)
@@ -124,6 +121,27 @@ export function A7DocumentationStep({
     }),
     [intake],
   )
+
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   useEffect(() => {
     let cancelled = false
@@ -367,6 +385,7 @@ export function A7DocumentationStep({
       if (typeof documentation.result_body === 'string') setResultBody(documentation.result_body)
       else setResultBody(brief?.result_body || '')
       applyConfluenceFromRun(documentation, setTrackingId, setConfluencePublish)
+      setHasExtracted(true)
       setRunComplete(true)
       onResults({
         log: res.result.log,
@@ -396,84 +415,187 @@ export function A7DocumentationStep({
     }
   }
 
-  const title = brief?.title || 'Documentation & Knowledge Graph'
-  const lede =
-    brief?.lede ||
-    'Writes fresh, accurate documentation for the old system — often for the first time in decades.'
-  const formHeading = brief?.form_heading || 'Set the documentation lens'
-  const kicker = brief?.domain_kicker || 'Domain B · Understand the old code · Step A7'
   const shownDocs = documents.length
     ? documents
     : (brief?.documents || []).map((d) => ({ ...d, produced: artifacts.includes(d.id) }))
 
   return (
     <div className="a7-step a1-wizard mf-req">
-      <p className="dash-kicker">{kicker}</p>
-      <h2 className="dash-title">{briefLoading ? 'Documentation & Knowledge Graph' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Personalizing this step from your Factory Administrator (A1) context, path map, and prior agent…'
-          : lede}
-      </p>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context a7-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <section className="a2-a1-context" aria-label="A1 and prior agent context">
-        <div className="a2-a1-context-head">
-          <h4>Domain Level Intake &amp; Context Matrix</h4>
-          <span className="a2-a1-lock">Semantic continuity</span>
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
-        <p className="dash-sub a2-a1-intro">
-          Documentation artefacts below stay close to the locked A1 combination and whatever the
-          immediate prior agent finished.
-        </p>
-        <dl className="a2-a1-grid">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div>
-            <dt>Category</dt>
-            <dd>{a1Context.categoryName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Application / title</dt>
-            <dd>{a1Context.projectName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Requirement / trend</dt>
-            <dd>{a1Context.requirement ? truncate(a1Context.requirement, 160) : '—'}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Prior agent</dt>
-            <dd>
-              {brief?.prior_agent_id
-                ? `${brief.prior_agent_id} · ${brief.prior_agent_name || ''}`
-                : '—'}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR AGENT
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {brief?.prior_agent_id || 'A6'} {brief?.prior_agent_name ? `· ${brief.prior_agent_name}` : '· Business rule extraction'}
+            </span>
           </div>
-          {brief?.doc_plan ? (
-            <div className="a2-a1-why">
-              <dt>Documentation plan</dt>
-              <dd>{brief.doc_plan}</dd>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CONTINUITY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {brief?.prior_line || 'Documentation artefacts stay close to the locked A1 combination and whatever A6 finished.'}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Modernizing legacy code to Python.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              DOCUMENTATION PLAN
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {brief?.doc_plan || 'Develop consistent documentation to align with the modernization strategy for better usability.'}
+            </span>
+          </div>
+
+          {brief?.context_line ? (
+            <div style={{ gridColumn: '1 / -1', marginTop: '2px', paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#2dd4bf' }}>
+                {brief.context_line}
+              </span>
             </div>
           ) : null}
-        </dl>
-        {brief?.context_line ? <p className="a2-context-chip">{brief.context_line}</p> : null}
-        {brief?.prior_line ? <p className="dash-sub">{brief.prior_line}</p> : null}
+        </div>
       </section>
 
-      {/* Execution Controls Section */}
-      <div className="mf-category-caption" style={{ marginTop: '16px' }}>
-        ⚙️ 5. EXECUTION CONTROLS &amp; DOCUMENTATION LENS
-      </div>
-      <div className="a3-rules-head a4-form-head">
-            <h3>{formHeading}</h3>
-            {brief?.suggested_artifacts?.length ? (
-              <button type="button" className="landing-ghost a3-suggest-btn" onClick={applySuggested}>
-                Apply LLM suggestions
-              </button>
-            ) : null}
-          </div>
+      {/* 2. EXECUTION CONTROLS & DOCUMENTATION LENS (Single rich compact card) */}
+      <section className="a7-execution-controls-card" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ EXECUTION CONTROLS &amp; DOCUMENTATION LENS
+          </h4>
+          {brief?.suggested_artifacts?.length ? (
+            <button
+              type="button"
+              className="landing-ghost a3-suggest-btn"
+              style={{ padding: '3px 8px', fontSize: '11px' }}
+              onClick={applySuggested}
+            >
+              Apply LLM suggestions
+            </button>
+          ) : null}
+        </div>
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.artifacts_label || 'What documentation should we produce?'}</h4>
-            <p className="a4-field-hint">{brief?.artifacts_hint || 'Stay close to prior agent outputs.'}</p>
-            <div className="a3-pills" role="group" aria-label="Documentation artefacts">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {brief?.artifacts_label || 'What documentation should we produce?'}
+            </span>
+            <div className="a3-pills" role="group" aria-label="Documentation artefacts" style={{ gap: '4px' }}>
               {artOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -482,16 +604,19 @@ export function A7DocumentationStep({
                   aria-pressed={artifacts.includes(id)}
                   onClick={() => toggleArtifact(id)}
                   disabled={briefLoading}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
+          </div>
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.publish_label || 'Where should operators find the docs?'}</h4>
-            <div className="a3-pills" role="radiogroup" aria-label="Publish target">
+          <div>
+            <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {brief?.publish_label || 'Where should operators find the docs?'}
+            </span>
+            <div className="a3-pills" role="radiogroup" aria-label="Publish target" style={{ gap: '4px' }}>
               {pubOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -503,16 +628,19 @@ export function A7DocumentationStep({
                     setRunComplete(false)
                   }}
                   disabled={briefLoading}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
+          </div>
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.depth_label || 'How deep should documentation go?'}</h4>
-            <div className="a3-pills" role="radiogroup" aria-label="Documentation depth">
+          <div>
+            <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {brief?.depth_label || 'How deep should documentation go?'}
+            </span>
+            <div className="a3-pills" role="radiogroup" aria-label="Documentation depth" style={{ gap: '4px' }}>
               {depthOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -524,32 +652,46 @@ export function A7DocumentationStep({
                     setRunComplete(false)
                   }}
                   disabled={briefLoading}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
-
-          {error && <p className="err">{error}</p>}
-
-          <div className="dash-run-row a3-run-row" style={{ marginBottom: '24px' }}>
-            <button
-              className="landing-start"
-              type="button"
-              disabled={!canRun || busy}
-              onClick={() => void runAgent()}
-            >
-              {busy ? 'Documenting…' : done ? '▶ Run this agent again' : '▶ Generate documentation'}
-            </button>
-            <button type="button" className="landing-ghost" disabled={busy} onClick={() => onContinueNext?.()}>
-              Skip →
-            </button>
-            {!canRun && blockerHint ? <span className="dash-sub a2-blocker-hint">{blockerHint}</span> : null}
           </div>
+        </div>
+      </section>
 
-      {/* Generated Documents Catalog - ALWAYS VISIBLE UPFRONT */}
-      {shownDocs.length > 0 ? (
+      {error && <p className="err">{error}</p>}
+
+      <div className="dash-run-row a3-run-row" style={{ marginBottom: '10px' }}>
+        <button
+          className="landing-start"
+          type="button"
+          disabled={!canRun || busy}
+          onClick={() => void runAgent()}
+          style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
+        >
+          {busy ? 'Documenting…' : done ? '▶ Run this agent again' : '▶ Generate documentation'}
+        </button>
+        {!canRun && blockerHint ? <span className="dash-sub a2-blocker-hint">{blockerHint}</span> : null}
+      </div>
+
+      {/* Pre-Execution Guidance Card */}
+      {!hasExtracted && !done && !runComplete ? (
+        <section className="a7-pre-extract-card" style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', padding: '14px', margin: '10px 0', textAlign: 'center' }}>
+          <div style={{ fontSize: '24px', marginBottom: '4px' }}>📚</div>
+          <h4 style={{ color: '#38bdf8', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 4px', letterSpacing: '0.02em' }}>
+            Ready to Generate Documentation &amp; Knowledge Graph
+          </h4>
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', maxWidth: '680px', margin: '0 auto 8px', lineHeight: 1.4 }}>
+            Click the <strong style={{ color: '#38bdf8' }}>▶ Generate documentation</strong> button above. The agent will synthesize BRDs, technical system specs, knowledge graphs, and reveal the Enterprise Confluence sync panel with your enforced tracking ID.
+          </p>
+        </section>
+      ) : null}
+
+      {/* Generated Documents Catalog & Confluence Sync - VISIBLE AFTER CLICKING GENERATE DOCUMENTATION */}
+      {(hasExtracted || done || runComplete) ? (
         <section className="a7-results a5-results" aria-live="polite">
           <div className="a6-banner a7-banner">
             <strong>
@@ -664,7 +806,7 @@ export function A7DocumentationStep({
 
           <section className="a5-panel a7-confluence-panel">
             <div className="a7-panel-head">
-              <h4>Confluence publish</h4>
+              <h4>Confluence Publish &amp; Enterprise Sync</h4>
               {trackingId ? (
                 confluencePublish?.search_url || confluencePublish?.pack_url ? (
                   <a
@@ -684,13 +826,26 @@ export function A7DocumentationStep({
               ) : null}
             </div>
             <p className="dash-sub a7-confluence-note">
-              Store produced documents in Confluence with Read, Write, and Admin permissions.
-              Each page is tagged with a tracking ID so anyone can identify which factory run
-              instance created it. Click the tracking ID or any page link to open Confluence.
+              Store produced documents in Enterprise Confluence with Read, Write, and Admin permissions.
+              Enforce a tracking ID below to tag all generated documentation pages for this run.
             </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', margin: '10px 0' }}>
+              <label style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                ENFORCED CONFLUENCE TRACKING ID / SPACE KEY
+              </label>
+              <input
+                type="text"
+                value={trackingId}
+                onChange={(e) => setTrackingId(e.target.value)}
+                placeholder="e.g. CONF-MOD-2026-A7 or SPACE-ENTERPRISE-SPEC"
+                style={{ background: '#0f172a', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#f8fafc', padding: '6px 10px', borderRadius: '5px', fontSize: '12px', width: '100%', maxWidth: '400px' }}
+              />
+            </div>
+
             {!confluencePublish?.pages?.length ? (
               <>
-                <div className="a3-pills a7-confluence-perms" role="group" aria-label="Confluence permissions">
+                <div className="a3-pills a7-confluence-perms" role="group" aria-label="Confluence permissions" style={{ margin: '8px 0' }}>
                   {CONFLUENCE_PERMS.map(([id, label]) => (
                     <button
                       key={id}
@@ -711,16 +866,16 @@ export function A7DocumentationStep({
                     disabled={confluenceBusy || !confluencePerms.length}
                     onClick={() => void publishToConfluence()}
                   >
-                    {confluenceBusy ? 'Publishing…' : 'Publish to Confluence'}
+                    {confluenceBusy ? 'Pushing to Confluence…' : `🚀 Push to Confluence (Tracking ID: ${trackingId || 'AUTO'})`}
                   </button>
                 </div>
               </>
             ) : (
               <div className="a7-confluence-done">
-                <p className="a7-confluence-status">
+                <p className="a7-confluence-status" style={{ color: '#4ade80', fontWeight: 800 }}>
                   {confluencePublish.live ? '✓' : '○'}{' '}
-                  {confluencePublish.live ? 'Published' : 'Staged'}{' '}
-                  {confluencePublish.page_count ?? confluencePublish.pages?.length ?? 0} pages
+                  {confluencePublish.live ? 'Published & Synced' : 'Staged'}{' '}
+                  {confluencePublish.page_count ?? confluencePublish.pages?.length ?? 0} pages · Enforced Tracking ID: [{trackingId || 'CONF-MOD-2026-A7'}]
                   {confluencePublish.published_at ? ` · ${confluencePublish.published_at}` : ''}
                 </p>
                 <div className="a7-confluence-open-row">
@@ -731,7 +886,7 @@ export function A7DocumentationStep({
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Open Confluence pack →
+                      Open Confluence Pack →
                     </a>
                   )}
                   {confluencePublish.search_url ? (
@@ -750,7 +905,7 @@ export function A7DocumentationStep({
                     disabled={confluenceBusy}
                     onClick={() => void publishToConfluence()}
                   >
-                    {confluenceBusy ? 'Publishing…' : 'Re-publish'}
+                    {confluenceBusy ? 'Pushing…' : 'Re-push to Confluence'}
                   </button>
                 </div>
                 {confluencePublish.pages?.length ? (
@@ -792,7 +947,7 @@ export function A7DocumentationStep({
 
           <div className="a1-just-did-actions a5-footer">
             <button className="landing-start" type="button" onClick={() => onContinueNext?.()}>
-              {continueLabel || 'Continue to next step →'}
+              {continueLabel || '▶ Move Forward to A8: Target Architecture Agent →'}
             </button>
             <span className="a1-step-badge a5-complete-pill">✓ Step complete</span>
           </div>

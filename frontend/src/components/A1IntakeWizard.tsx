@@ -506,10 +506,7 @@ const STRATEGIC_IMPORTANCE_MAP: Record<string, string> = {
 
   return (
     <div className="a1-wizard mf-req">
-      <div className="mf-category-caption">
-        📊 2. STRATEGIC INTAKE &amp; WORKLOAD CATEGORY MATRIX
-      </div>
-      <h4>12-category intake · choose one category</h4>
+      <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px 0' }}>12-category intake · choose one category</h4>
       <p className="dash-sub">
         Select a category and a trend example (or None of these). Hover over any category to view its Strategic Modernization Importance tooltip.
       </p>

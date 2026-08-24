@@ -23,12 +23,6 @@ const FALLBACK_CHECKS: ChecklistItem[] = [
   { id: 'gaps_ok', label: 'No obvious gaps remain before we redesign', required: true },
 ]
 
-function truncate(text: string, n = 180): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
-
 export function G1DiscoveryApprovalStep({
   runId,
   gate,
@@ -48,6 +42,12 @@ export function G1DiscoveryApprovalStep({
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
   const a1Context = useMemo(
     () => ({
       categoryName: intake?.category_name || intake?.category_id || '—',
@@ -59,6 +59,21 @@ export function G1DiscoveryApprovalStep({
     }),
     [intake],
   )
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   const checklist: ChecklistItem[] = useMemo(() => {
     if (brief?.checklist?.length) {
@@ -190,9 +205,7 @@ export function G1DiscoveryApprovalStep({
           value: p.value,
         })),
       })
-      if (approved && !res.rewound_to) {
-        onContinueNext?.()
-      }
+      onDecided(approved ? null : res.rewound_to || 'A8')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e))
     } finally {
@@ -200,11 +213,6 @@ export function G1DiscoveryApprovalStep({
     }
   }
 
-  const title = brief?.title || evidence?.name || 'Gate 1 · Discovery Approval'
-  const lede =
-    brief?.lede ||
-    evidence?.question ||
-    'The most critical gate. Humans confirm we understood the old system correctly before we start rebuilding.'
   const decided = Boolean(evidence?.decided)
   const discoveryItems = brief?.discovery_items?.length
     ? brief.discovery_items
@@ -212,92 +220,166 @@ export function G1DiscoveryApprovalStep({
 
   return (
     <div className="g0-step g1-step a1-wizard mf-req">
-      <p className="dash-kicker">
-        Domain {gate.domain} · {domainLabel} · Gate {gate.id} · Active · on path
-      </p>
-      <h2 className="dash-title">{briefLoading ? 'Gate 1 · Discovery Approval' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Building a plain-English discovery approval from Agents A5–A8…'
-          : lede}
-      </p>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <section className="a2-a1-context">
-        <div className="a2-a1-context-head">
-          <h4>Intake context · locked from A1</h4>
-          <span className="a2-a1-lock">Read-only</span>
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
-        <p className="a2-a1-intro">
-          {brief?.requirement_summary ||
-            brief?.context_line ||
-            'This gate confirms discovery for the requirement and strategy you already locked in.'}
-        </p>
-        <dl className="a2-a1-grid">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div>
-            <dt>From A1</dt>
-            <dd>{a1Context.categoryName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Strategy</dt>
-            <dd>{a1Context.strategyShort}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Project</dt>
-            <dd>{a1Context.projectName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Prior agent</dt>
-            <dd>{brief?.prior_agent_name || 'Runtime Behaviour Mining'}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR AGENT
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              A8 · Runtime behaviour mining
+            </span>
           </div>
-        </dl>
-        {a1Context.requirement ? (
-          <p className="a2-a1-why">
-            <b>Requirement</b> {truncate(a1Context.requirement, 220)}
-          </p>
-        ) : null}
-        {a1Context.why ? (
-          <p className="a2-a1-why">
-            <b>Why modernise</b> {truncate(a1Context.why, 220)}
-          </p>
-        ) : null}
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CONTINUITY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              Human governance checkpoint validating legacy estate inventory, code classification, and risk boundaries before target redesign.
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Modernizing legacy application estate.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
+        </div>
       </section>
 
-      <section className="g0-approver-card g1-approver-card">
-        <h4>{brief?.approver_heading || 'You are the approver'}</h4>
-        <p>
-          {brief?.paused_line ||
-            "The pipeline has paused. Nothing downstream can happen until you decide. You're reviewing the work produced by Runtime Behaviour Mining."}
-        </p>
-        <div className="g0-expected">
-          <span className="g0-expected-label">Expected approver</span>
-          <span className="g0-expected-value">
-            {brief?.expected_approvers ||
-              evidence?.approvers ||
-              'Subject matter expert + architect'}
+      {/* 2. GOVERNANCE CONTROLS & DISCOVERY EVIDENCE (Single compact card) */}
+      <section className="g0-policy-card g1-evidence-card" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ GOVERNANCE CONTROLS &amp; DISCOVERY EVIDENCE
+          </h4>
+          <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            A5 → A8
           </span>
         </div>
-      </section>
 
-      <section className="g0-policy-card g1-evidence-card">
-        <div className="g0-policy-head">
-          <h4>{brief?.evidence_heading || 'Discovery evidence · from prior agents'}</h4>
-          <span className="g0-policy-chip">A5 → A8</span>
-        </div>
-        <p className="g0-policy-intro">
-          {brief?.evidence_intro ||
-            'These facts were produced by Agents A5–A8. Approve only if they match how the estate works today.'}
+        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px', lineHeight: '1.4' }}>
+          Expected Approver: <strong style={{ color: '#f8fafc' }}>{brief?.expected_approvers || evidence?.approvers || 'Subject Matter Expert + Enterprise Architect'}</strong>. Review discovery evidence extracted from Agents A5–A8.
         </p>
+
         {briefLoading ? (
-          <p className="dash-empty">Synthesizing discovery evidence…</p>
+          <p className="dash-empty" style={{ fontSize: '11px' }}>Synthesizing discovery evidence…</p>
         ) : (
-          <div className="g0-policy-grid">
+          <div className="g0-policy-grid" style={{ gap: '6px' }}>
             {discoveryItems.map((item) => (
-              <div key={`${item.label}-${item.value}`} className="g0-policy-item">
-                <div className="g0-policy-item-top">
-                  <b>{item.label}</b>
-                  {item.source ? <span className="g0-src">{item.source}</span> : null}
+              <div key={`${item.label}-${item.value}`} className="g0-policy-item" style={{ padding: '6px 8px', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <div className="g0-policy-item-top" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <b style={{ fontSize: '11px', color: '#38bdf8' }}>{item.label}</b>
+                  {item.source ? <span className="g0-src" style={{ fontSize: '9.5px', color: '#94a3b8' }}>{item.source}</span> : null}
                 </div>
-                <span>{item.value}</span>
+                <span style={{ fontSize: '11px', color: '#cbd5e1', lineHeight: '1.3' }}>{item.value}</span>
               </div>
             ))}
           </div>
@@ -306,50 +388,50 @@ export function G1DiscoveryApprovalStep({
 
       {!decided && (
         <ChecklistPanel
-          title={brief?.checklist_heading || 'Checklist · click each item to confirm'}
+          title={brief?.checklist_heading || 'OPTIONAL / MANDATORY VERIFICATION CHECKLIST'}
+          gateId="G1"
+          gateName="Repository & Code Inventory Sign-Off"
           items={checklist}
           checked={checked}
-          note={brief?.checklist_note || 'Click each item to confirm — nothing is ticked for you.'}
+          note={brief?.checklist_note || 'Confirm each mandatory verification item before approving this gate.'}
+          onAutoApproveGate={() => void decide(true)}
           onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
         />
       )}
-
-      <p className="g0-reject-note">
-        {brief?.reject_consequence ||
-          'What happens if you reject? The pipeline routes back to Runtime Behaviour Mining and asks the agent to try again with your feedback.'}
-      </p>
 
       {notice && <p className="a3-notice">{notice}</p>}
       {error && <p className="err">{error}</p>}
       {evidence?.blocker && <p className="err">{evidence.blocker}</p>}
 
       {decided ? (
-        <div className="dash-run-row g0-run-row">
-          <button className="landing-start" type="button" onClick={() => onContinueNext?.()}>
-            {continueLabel || 'Continue to next step →'}
+        <div className="dash-run-row g0-run-row" style={{ marginTop: '10px' }}>
+          <button className="landing-start" type="button" onClick={() => onContinueNext?.()} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+            {continueLabel || '▶ Move Forward to A9: Domain Decomposition Agent →'}
           </button>
-          <span className="g0-await-pill g1-approved-pill">✓ Gate approved</span>
+          <span className="g0-await-pill g1-approved-pill">✓ Gate G1 approved</span>
         </div>
       ) : (
-        <div className="dash-run-row g0-run-row">
+        <div className="dash-run-row g0-run-row" style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             className="landing-start g0-approve"
             type="button"
             disabled={busy || !checklistReady || briefLoading}
             onClick={() => void decide(true)}
+            style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
           >
-            {busy ? 'Saving…' : '✓ Approve — continue pipeline'}
+            {busy ? 'Saving…' : '▶ Approve — Continue Next Agent: A9 Domain Decomposition Agent →'}
           </button>
           <button
             className="g0-reject"
             type="button"
             disabled={busy || briefLoading}
             onClick={() => void decide(false)}
+            style={{ fontSize: '11.5px', padding: '6px 12px' }}
           >
             ✕ Request changes
           </button>
-          <span className="g0-await-pill">
-            {!checklistReady ? 'Complete the checklist' : 'Awaiting your decision'}
+          <span className="g0-await-pill" style={{ fontSize: '11px' }}>
+            {!checklistReady ? 'Complete mandatory checklist' : 'Awaiting decision'}
           </span>
         </div>
       )}

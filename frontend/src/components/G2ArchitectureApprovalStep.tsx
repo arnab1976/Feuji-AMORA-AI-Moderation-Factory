@@ -27,12 +27,6 @@ const FALLBACK_CHECKS: ChecklistItem[] = [
   { id: 'security_ok', label: 'Security / auth design for the target architecture has been reviewed', required: true },
 ]
 
-function truncate(text: string, n = 90): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
-
 export function G2ArchitectureApprovalStep({
   runId,
   gate,
@@ -52,6 +46,12 @@ export function G2ArchitectureApprovalStep({
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
   const a1Context = useMemo(
     () => ({
       categoryName: intake?.category_name || intake?.category_id || '—',
@@ -63,6 +63,21 @@ export function G2ArchitectureApprovalStep({
     }),
     [intake],
   )
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   const checklist: ChecklistItem[] = useMemo(() => {
     const source = brief?.checklist?.length ? brief.checklist : FALLBACK_CHECKS
@@ -194,9 +209,7 @@ export function G2ArchitectureApprovalStep({
           value: p.value,
         })),
       })
-      if (approved && !res.rewound_to) {
-        onContinueNext?.()
-      }
+      onDecided(approved ? null : res.rewound_to || 'A10')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e))
     } finally {
@@ -204,15 +217,6 @@ export function G2ArchitectureApprovalStep({
     }
   }
 
-  const rawTitle = brief?.title || evidence?.name || 'Approve the design'
-  const title =
-    /factory ui|modernization factory|for modernization/i.test(rawTitle) || rawTitle.length > 36
-      ? 'Approve the design'
-      : rawTitle
-  const lede =
-    brief?.lede ||
-    evidence?.question ||
-    'Do you approve this shape and this build order?'
   const decided = Boolean(evidence?.decided)
   const architectureItems = (
     brief?.architecture_items?.length
@@ -224,7 +228,6 @@ export function G2ArchitectureApprovalStep({
       ? architectureItems
       : (evidence?.evidence || []).map((e) => ({ label: e.label, value: e.value, source: '' }))
   const deltas = brief?.comparison_deltas || []
-  const pathLabel = brief?.path_status_label || 'Active · on path'
   const movementPath =
     brief?.movement_path && !/factory ui/i.test(brief.movement_path)
       ? brief.movement_path
@@ -250,20 +253,6 @@ export function G2ArchitectureApprovalStep({
     return 'Legacy'
   }, [a1Context])
 
-  const cleanedPrevSummary = useMemo(() => {
-    const raw = brief?.previous_summary || ''
-    if (!raw) {
-      return `Derived from discovery — the ${a1Context.categoryName} estate still runs as a tightly coupled legacy system without explicit service contracts.`
-    }
-    const isCobol = activeLang === 'COBOL'
-    if (!isCobol && raw.toLowerCase().includes('cobol')) {
-      return raw.replace(/\bCOBOL monolith\b/gi, `${activeLang} monolith`)
-                .replace(/\bCOBOL system\b/gi, `${activeLang} system`)
-                .replace(/\bCOBOL\b/gi, activeLang)
-    }
-    return raw
-  }, [brief?.previous_summary, a1Context, activeLang])
-
   const cleanedDeltas = useMemo(() => {
     const rawDeltas = deltas
     const isCobol = activeLang === 'COBOL'
@@ -281,166 +270,263 @@ export function G2ArchitectureApprovalStep({
 
   return (
     <div className="g2-step mf-req">
-      <p className="dash-kicker">
-        Domain {gate.domain} · {domainLabel} · Gate {gate.id} · {pathLabel}
-      </p>
-      <h2 className="dash-title">{briefLoading ? 'Approve the design' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Building a plain-English design approval from Agents A9–A11 and your path map…'
-          : lede}
-      </p>
-      <p className="dash-sub">
-        Approvers: {brief?.expected_approvers || evidence?.approvers || 'Architecture board'}
-      </p>
-      <p className="dash-sub">
-        {brief?.paused_line ||
-          evidence?.why ||
-          'Changing the design after code is written costs roughly ten times more.'}
-      </p>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <div className="step-context g2-context">
-        <div>
-          <b>From A1</b>
-          <span>{a1Context.categoryName}</span>
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
-        <div>
-          <b>Strategy</b>
-          <span>{a1Context.strategyShort}</span>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR AGENT
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              A10 · Target Architecture
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              MOVEMENT PATH
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {movementPath}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Modernizing legacy application estate.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
         </div>
-        <div>
-          <b>Requirement</b>
-          <span>
-            {a1Context.requirement
-              ? truncate(a1Context.requirement, 90)
-              : truncate(brief?.requirement_summary || a1Context.projectName, 90)}
+      </section>
+
+      {/* 2. GOVERNANCE CONTROLS & ARCHITECTURE EVIDENCE (Single compact card) */}
+      <section className="g0-policy-card g1-evidence-card" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ GOVERNANCE CONTROLS &amp; ARCHITECTURE EVIDENCE
+          </h4>
+          <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            A9 → A10
           </span>
         </div>
-        <div>
-          <b>Map status</b>
-          <span className="g2-map-status">{pathLabel}</span>
-        </div>
-      </div>
 
-      <p className="dash-sub g2-path-line">
-        <b>Movement path</b> {movementPath}
-      </p>
+        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px', lineHeight: '1.4' }}>
+          Expected Approver: <strong style={{ color: '#f8fafc' }}>{brief?.expected_approvers || evidence?.approvers || 'Business Domain Owner & Systems Analyst'}</strong>. Review target architecture contracts and bounded context design before code transpilation.
+        </p>
 
-      {briefLoading ? (
-        <p className="dash-empty">Synthesizing design evidence from A9–A11…</p>
-      ) : (
-        <div className="dash-evidence g2-evidence">
-          {(displayItems.length ? displayItems : architectureItems).map((item) => (
-            <div key={`${item.label}-${item.value}`} className="dash-evr">
-              <b>
-                {item.label}
-                {item.source ? ` · ${item.source}` : ''}
-              </b>
-              <span>{item.value}</span>
+        {briefLoading ? (
+          <p className="dash-empty" style={{ fontSize: '11px' }}>Synthesizing architecture evidence from A9–A10…</p>
+        ) : (
+          <div className="g0-policy-grid" style={{ gap: '6px' }}>
+            {displayItems.map((item) => (
+              <div key={`${item.label}-${item.value}`} className="g0-policy-item" style={{ padding: '6px 8px', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <div className="g0-policy-item-top" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <b style={{ fontSize: '11px', color: '#38bdf8' }}>{item.label}</b>
+                  {item.source ? <span className="g0-src" style={{ fontSize: '9.5px', color: '#94a3b8' }}>{item.source}</span> : null}
+                </div>
+                <span style={{ fontSize: '11px', color: '#cbd5e1', lineHeight: '1.3' }}>{item.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 3. SLEEK SIDE-BY-SIDE ARCHITECTURAL MATRIX (Zero Clutter) */}
+      {!briefLoading && (
+        <section style={{ padding: '10px 14px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+          <h4 style={{ fontSize: '11.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
+            📊 ARCHITECTURAL COMPARISON &amp; TO-BE PROPOSAL
+          </h4>
+          <div style={{ background: 'rgba(15, 23, 42, 0.5)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.08)', overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 1.4fr', background: 'rgba(30, 41, 59, 0.8)', borderBottom: '1px solid rgba(56, 189, 248, 0.25)', padding: '6px 10px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>ARCHITECTURAL ASPECT</span>
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>PREVIOUS MONOLITH (AS-IS)</span>
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em' }}>TARGET MICROSERVICES (TO-BE)</span>
             </div>
-          ))}
-        </div>
+
+            {cleanedDeltas.length > 0 ? (
+              cleanedDeltas.map((d, idx) => (
+                <div
+                  key={`${d.aspect}-${idx}`}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.2fr 1.4fr 1.4fr',
+                    padding: '6px 10px',
+                    borderBottom: idx === cleanedDeltas.length - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)',
+                    background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.015)',
+                    alignItems: 'center',
+                    fontSize: '11px',
+                  }}
+                >
+                  <strong style={{ color: '#cbd5e1', fontWeight: 700 }}>{d.aspect}</strong>
+                  <span style={{ color: '#94a3b8' }}>{d.from}</span>
+                  <span style={{ color: '#f8fafc', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#4ade80', fontSize: '9.5px' }}>→</span> {d.to}
+                    {d.change ? <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>{d.change}</span> : null}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: '8px 10px', fontSize: '11px', color: '#cbd5e1' }}>
+                <span>{brief?.target_summary || 'Target architecture proposals synthesized and ready for gate review.'}</span>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
-      {(brief?.previous_summary || brief?.target_summary || cleanedDeltas.length > 0) && !briefLoading ? (
-        <section className="a10-compare-grid g2-compare" aria-label="Architecture comparison">
-          {(brief?.previous_summary || brief?.target_summary) && (
-            <>
-              <article className="a10-compare-col a10-compare-prev">
-                <header className="a10-compare-head">
-                  <span className="a10-compare-badge prev">Previous</span>
-                  <h3>Previous architecture</h3>
-                </header>
-                <div className="a6-banner a7-banner a10-banner a10-banner-prev">
-                  <strong>As-is</strong>
-                  <p>{cleanedPrevSummary}</p>
-                </div>
-              </article>
-              <article className="a10-compare-col a10-compare-target">
-                <header className="a10-compare-head">
-                  <span className="a10-compare-badge target">Target</span>
-                  <h3>Target architecture</h3>
-                </header>
-                <div className="a6-banner a7-banner a10-banner">
-                  <strong>To approve</strong>
-                  <p>
-                    {brief?.target_summary ||
-                      'Target design defines how the new pieces talk and own data.'}
-                  </p>
-                </div>
-              </article>
-            </>
-          )}
-          {cleanedDeltas.length ? (
-            <section className="a10-deltas g2-deltas" aria-label="What changed">
-              <h4>What changed</h4>
-              <ul className="a10-delta-list">
-                {cleanedDeltas.map((d) => (
-                  <li key={`${d.aspect}-${d.from}-${d.to}`}>
-                    <span className="a10-delta-aspect">{d.aspect}</span>
-                    <span className="a10-delta-from">{d.from}</span>
-                    <span className="a10-delta-arrow" aria-hidden>
-                      →
-                    </span>
-                    <span className="a10-delta-to">{d.to}</span>
-                    {d.change ? <span className="a10-delta-tag">{d.change}</span> : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </section>
-      ) : null}
-
+      {/* 4. VERIFICATION CHECKLIST */}
       {!decided && (
         <ChecklistPanel
-          title={brief?.checklist_heading || 'Human gate checklist'}
+          title={brief?.checklist_heading || 'OPTIONAL / MANDATORY VERIFICATION CHECKLIST'}
+          gateId="G2"
+          gateName="Target Architecture & Microservice Sign-Off"
           items={checklist}
           checked={checked}
-          note={
-            brief?.checklist_note ||
-            'Checklist items combine the step’s standard controls with your A1 category, requirement, strategy, and the agent & gate map combination.'
-          }
+          note={brief?.checklist_note || 'Confirm each mandatory verification item before approving this architecture gate.'}
+          onAutoApproveGate={() => void decide(true)}
           onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
         />
       )}
-
-      <p className="g0-reject-note">
-        {brief?.reject_consequence ||
-          'What happens if you reject? The pipeline routes back to Data Modernization and asks the agent to try again with your feedback.'}
-      </p>
 
       {notice && <p className="a3-notice">{notice}</p>}
       {error && <p className="err">{error}</p>}
       {evidence?.blocker && <p className="err">{evidence.blocker}</p>}
 
       {decided ? (
-        <div className="dash-run-row g0-run-row">
-          <button className="landing-start" type="button" onClick={() => onContinueNext?.()}>
-            {continueLabel || 'Continue to next step →'}
+        <div className="dash-run-row g0-run-row" style={{ marginTop: '10px' }}>
+          <button className="landing-start" type="button" onClick={() => onContinueNext?.()} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+            {continueLabel || '▶ Move Forward to A12: Code Transpilation Agent →'}
           </button>
-          <span className="g0-await-pill g1-approved-pill">✓ Gate approved</span>
+          <span className="g0-await-pill g1-approved-pill">✓ Gate G2 approved</span>
         </div>
       ) : (
-        <div className="dash-run-row g0-run-row">
+        <div className="dash-run-row g0-run-row" style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             className="landing-start g0-approve"
             type="button"
             disabled={busy || !checklistReady || briefLoading}
             onClick={() => void decide(true)}
+            style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
           >
-            {busy ? 'Saving…' : 'Approve and continue'}
+            {busy ? 'Saving…' : '▶ Approve — Continue Next Agent: A12 Code Transpilation Agent →'}
           </button>
           <button
             className="g0-reject"
             type="button"
             disabled={busy || briefLoading}
             onClick={() => void decide(false)}
+            style={{ fontSize: '11.5px', padding: '6px 12px' }}
           >
             ✕ Request changes
           </button>
-          <span className="g0-await-pill">
-            {!checklistReady ? 'Complete all mandatory items' : 'Awaiting your decision'}
+          <span className="g0-await-pill" style={{ fontSize: '11px' }}>
+            {!checklistReady ? 'Complete mandatory checklist' : 'Awaiting decision'}
           </span>
         </div>
       )}

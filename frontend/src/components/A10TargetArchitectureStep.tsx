@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type A10Brief, type LogLine } from '../api/client'
 import type { PathMapIntakeSnapshot } from './AgentGateMapStep'
 import type { ActivityPayload, GlossaryTerm } from './A1IntakeWizard'
+import { ChecklistPanel, type ChecklistItem } from './ChecklistPanel'
 
 interface Props {
   runId: string
@@ -51,11 +52,11 @@ const FALLBACK_DEPTH: [string, string][] = [
   ['deep', 'Deep — full surface area, ownership rules, ADR pack'],
 ]
 
-function truncate(text: string, n = 160): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
+const FALLBACK_CHECKS: ChecklistItem[] = [
+  { id: 'comms_ok', label: 'Confirm service communication style matches resilience requirements', required: true },
+  { id: 'contracts_ok', label: 'Confirm API & event contract depth covers all bounded contexts', required: true },
+  { id: 'infra_ok', label: 'Confirm target architecture aligns with enterprise cloud standards', required: true },
+]
 
 function fmt(n: number): string {
   return n.toLocaleString()
@@ -81,6 +82,9 @@ export function A10TargetArchitectureStep({
   const [briefLoading, setBriefLoading] = useState(true)
   const [comms, setComms] = useState('mixed')
   const [depth, setDepth] = useState('standard')
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [isEditingPage, setIsEditingPage] = useState(false)
+  const [customArchPlan, setCustomArchPlan] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [runComplete, setRunComplete] = useState(false)
@@ -89,8 +93,6 @@ export function A10TargetArchitectureStep({
   const [contractsGenerated, setContractsGenerated] = useState<ContractMetric[]>([])
   const [previousArch, setPreviousArch] = useState<PreviousArchitecture | null>(null)
   const [deltas, setDeltas] = useState<ComparisonDelta[]>([])
-  const [resultHeadline, setResultHeadline] = useState('')
-  const [resultBody, setResultBody] = useState('')
 
   const commsOpts = brief?.comms_options?.length ? brief.comms_options : FALLBACK_COMMS
   const depthOpts = brief?.depth_options?.length ? brief.depth_options : FALLBACK_DEPTH
@@ -147,8 +149,6 @@ export function A10TargetArchitectureStep({
         setContractsGenerated(r.contracts_generated || [])
         setPreviousArch(r.previous_architecture || null)
         setDeltas(r.comparison_deltas || [])
-        setResultHeadline(r.result_headline || '')
-        setResultBody(r.result_body || '')
         const glossary: GlossaryTerm[] = r.glossary ?? []
         onResults({
           log: [
@@ -216,11 +216,6 @@ export function A10TargetArchitectureStep({
       if (architecture.previous_architecture && typeof architecture.previous_architecture === 'object') {
         setPreviousArch(architecture.previous_architecture as PreviousArchitecture)
       }
-      if (Array.isArray(architecture.comparison_deltas)) {
-        setDeltas(architecture.comparison_deltas as ComparisonDelta[])
-      }
-      if (typeof architecture.result_headline === 'string') setResultHeadline(architecture.result_headline)
-      if (typeof architecture.result_body === 'string') setResultBody(architecture.result_body)
       setRunComplete(true)
       onResults({
         log: r.log,
@@ -237,7 +232,24 @@ export function A10TargetArchitectureStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done, runId])
 
+  const checklist: ChecklistItem[] = useMemo(() => {
+    const briefChecklist = (brief as { checklist?: ChecklistItem[] } | null)?.checklist
+    const source = briefChecklist?.length ? briefChecklist : FALLBACK_CHECKS
+    return source.map((c: ChecklistItem) => ({
+      id: c.id,
+      label: c.label,
+      required: true,
+    }))
+  }, [brief])
+
   const canRun = Boolean(comms) && Boolean(depth)
+
+  function applySuggested() {
+    const targetComms = brief?.suggested_comms || 'mixed'
+    const targetDepth = brief?.suggested_depth || 'standard'
+    setComms(targetComms)
+    setDepth(targetDepth)
+  }
 
   const blockerHint = useMemo(() => {
     if (briefLoading) return 'Loading architecture fields from A1 + A9…'
@@ -299,10 +311,6 @@ export function A10TargetArchitectureStep({
       } else if (brief?.comparison_deltas?.length) {
         setDeltas(brief.comparison_deltas)
       }
-      if (typeof architecture.result_headline === 'string') setResultHeadline(architecture.result_headline)
-      else setResultHeadline(brief?.result_headline || '')
-      if (typeof architecture.result_body === 'string') setResultBody(architecture.result_body)
-      else setResultBody(brief?.result_body || '')
       setRunComplete(true)
       onResults({
         log: res.result.log,
@@ -332,38 +340,12 @@ export function A10TargetArchitectureStep({
     }
   }
 
-  const title = brief?.title || 'Target Architecture'
-  const lede =
-    brief?.lede || 'Designs the new architecture — how the small services will talk to each other.'
-  const formHeading = brief?.form_heading || 'Set the communication style'
-  const kicker = brief?.domain_kicker || 'Domain D · Design & build the new · Step A10'
   const shownChoices = designChoices.length ? designChoices : brief?.design_choices || []
   const shownContracts = contractsGenerated.length
     ? contractsGenerated
     : brief?.contracts_generated || []
   const shownPrevious = previousArch || brief?.previous_architecture || null
   const services = brief?.service_names || []
-  const prevMetrics = shownPrevious?.estate_metrics || []
-
-  const cleanedPrevBody = useMemo(() => {
-    const raw = shownPrevious?.body || ''
-    if (!raw) {
-      return `Derived from discovery — the ${a1Context.categoryName} estate still runs as a tightly coupled legacy system without explicit service contracts.`
-    }
-    const reqLower = (a1Context.requirement || '').toLowerCase()
-    const projLower = (a1Context.projectName || '').toLowerCase()
-    const catLower = (a1Context.categoryName || '').toLowerCase()
-    const isCobolMentioned = reqLower.includes('cobol') || projLower.includes('cobol') || catLower.includes('cobol')
-    if (!isCobolMentioned && raw.toLowerCase().includes('cobol')) {
-      const targetLang = reqLower.includes('fortran') || projLower.includes('fortran')
-        ? 'Fortran'
-        : reqLower.includes('java') || projLower.includes('java')
-        ? 'Java'
-        : 'legacy'
-      return raw.replace(/\bCOBOL\b/gi, targetLang)
-    }
-    return raw
-  }, [shownPrevious?.body, a1Context])
 
   const cleanedPrevTraits = useMemo(() => {
     const rawTraits = shownPrevious?.design_traits || []
@@ -416,86 +398,154 @@ export function A10TargetArchitectureStep({
 
   return (
     <div className="a10-step a7-step a1-wizard mf-req">
-      <p className="dash-kicker">{kicker}</p>
-      <h2 className="dash-title">{briefLoading ? 'Target Architecture' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Personalizing this step from your Factory Administrator (A1) context, path map, and A9 decomposition…'
-          : lede}
-      </p>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isEditingPage ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                color: isEditingPage ? '#facc15' : '#4ade80',
+                border: isEditingPage ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+              }}
+            >
+              {!isEditingPage ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <section className="a2-a1-context" aria-label="A1 path and A9 context">
-        <div className="a2-a1-context-head">
-          <h4>Domain Level Intake &amp; Context Matrix</h4>
-          <span className="a2-a1-lock">Semantic continuity</span>
+          <button
+            type="button"
+            onClick={() => setIsEditingPage(!isEditingPage)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: !isEditingPage ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: !isEditingPage ? '#38bdf8' : '#4ade80',
+              border: !isEditingPage ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {!isEditingPage ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
-        <p className="dash-sub a2-a1-intro">
-          Design choices below stay close to the locked A1 combination, the active movement path, and
-          the bounded contexts A9 proposed.
-        </p>
-        <dl className="a2-a1-grid">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div>
-            <dt>From A1</dt>
-            <dd>{a1Context.categoryName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {a1Context.categoryName}
+            </span>
           </div>
+
           <div>
-            <dt>Strategy</dt>
-            <dd>{a1Context.strategyShort}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {a1Context.projectName}
+            </span>
           </div>
+
           <div>
-            <dt>Project</dt>
-            <dd>
-              {a1Context.requirement
-                ? truncate(a1Context.requirement, 140)
-                : a1Context.projectName}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {a1Context.strategyShort}
+            </span>
           </div>
+
           <div>
-            <dt>Map status</dt>
-            <dd>
-              {brief?.path_active_ids?.includes('A10')
-                ? 'Active · on path'
-                : brief?.path_active_ids?.length
-                  ? 'Path loaded'
-                  : '—'}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR AGENT
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {brief?.prior_agent_id ? `${brief.prior_agent_id} · ${brief.prior_agent_name || ''}` : 'A9 · Domain decomposition'}
+            </span>
           </div>
+
           <div>
-            <dt>Prior agent</dt>
-            <dd>
-              {brief?.prior_agent_id
-                ? `${brief.prior_agent_id} · ${brief.prior_agent_name || ''}`
-                : 'A9 · Domain decomposition'}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              A9 SERVICES
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#38bdf8' }}>
+              {services.length ? services.join(' · ') : brief?.shape || 'Awaiting A9'}
+            </span>
           </div>
-          <div>
-            <dt>A9 services</dt>
-            <dd>{services.length ? services.join(' · ') : brief?.shape || 'Awaiting A9'}</dd>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {a1Context.requirement || 'Modernizing legacy application estate.'}
+            </span>
           </div>
-          {brief?.architecture_plan ? (
-            <div className="a2-a1-span">
-              <dt>Architecture plan</dt>
-              <dd>{brief.architecture_plan}</dd>
-            </div>
-          ) : null}
-          {brief?.prior_line ? (
-            <div className="a2-a1-span">
-              <dt>Continuity</dt>
-              <dd>{brief.prior_line}</dd>
-            </div>
-          ) : null}
-        </dl>
-        {brief?.warning ? <p className="dash-sub a2-warn">{brief.warning}</p> : null}
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              ARCHITECTURE PLAN
+            </span>
+            {isEditingPage ? (
+              <textarea
+                rows={2}
+                value={customArchPlan}
+                onChange={(e) => setCustomArchPlan(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            ) : (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {customArchPlan || brief?.architecture_plan || 'Designs the target microservices, containerization blueprints, and API contracts.'}
+              </span>
+            )}
+          </div>
+        </div>
       </section>
 
-      {!runComplete ? (
-        <>
-          <h3 className="a4-form-heading">{formHeading}</h3>
-          {brief?.comms_hint ? <p className="dash-sub">{brief.comms_hint}</p> : null}
+      {/* 2. VERIFICATION CHECKLIST */}
+      <ChecklistPanel
+        items={checklist}
+        checked={checked}
+        disabled={briefLoading || busy}
+        title="OPTIONAL / MANDATORY VERIFICATION CHECKLIST"
+        note="Checklist items combine standard controls with your A1 category, requirement, and strategy. Confirm each mandatory item before running target architecture."
+        onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
+      />
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.comms_label || 'How should the pieces talk to each other?'}</h4>
-            <div className="a3-pills" role="radiogroup" aria-label="Communication style">
+      {/* 3. EXECUTION CONTROLS & ARCHITECTURE LENS (Single rich compact card) */}
+      <section className="a10-execution-card" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ EXECUTION CONTROLS &amp; ARCHITECTURE LENS
+          </h4>
+          <button
+            type="button"
+            className="landing-ghost a3-suggest-btn"
+            style={{ padding: '3px 8px', fontSize: '11px' }}
+            onClick={applySuggested}
+          >
+            Apply LLM suggestions
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {brief?.comms_label || 'How should the pieces talk to each other?'}
+            </span>
+            <div className="a3-pills" role="radiogroup" aria-label="Communication style" style={{ gap: '4px' }}>
               {commsOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -504,19 +554,21 @@ export function A10TargetArchitectureStep({
                   aria-pressed={comms === id}
                   onClick={() => {
                     setComms(id)
-                    setRunComplete(false)
                   }}
                   disabled={briefLoading}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
+          </div>
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.depth_label || 'How deep should contracts go?'}</h4>
-            <div className="a3-pills" role="radiogroup" aria-label="Contract depth">
+          <div>
+            <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {brief?.depth_label || 'How deep should contracts go?'}
+            </span>
+            <div className="a3-pills" role="radiogroup" aria-label="Contract depth" style={{ gap: '4px' }}>
               {depthOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -525,175 +577,150 @@ export function A10TargetArchitectureStep({
                   aria-pressed={depth === id}
                   onClick={() => {
                     setDepth(id)
-                    setRunComplete(false)
                   }}
                   disabled={briefLoading}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
-
-          {error && <p className="err">{error}</p>}
-
-          <div className="dash-run-row a3-run-row">
-            <button
-              className="landing-start"
-              type="button"
-              disabled={!canRun || busy}
-              onClick={() => void runAgent()}
-            >
-              {busy ? 'Designing…' : done ? '▶ Run this agent again' : '▶ Design target architecture'}
-            </button>
-            <button type="button" className="landing-ghost" disabled={busy} onClick={() => onContinueNext?.()}>
-              Skip →
-            </button>
-            {!canRun && blockerHint ? <span className="dash-sub a2-blocker-hint">{blockerHint}</span> : null}
           </div>
-        </>
-      ) : null}
+        </div>
+      </section>
 
-      {runComplete && (shownChoices.length > 0 || shownContracts.length > 0) ? (
-        <section className="a10-results a5-results" aria-live="polite">
-          <p className="a10-section-label">Architecture comparison</p>
+      {error && <p className="err">{error}</p>}
 
-          <div className="a10-compare-grid">
-            <article className="a10-compare-col a10-compare-prev">
-              <header className="a10-compare-head">
-                <span className="a10-compare-badge prev">Previous</span>
-                <h3>Previous architecture</h3>
-              </header>
-              <div className="a6-banner a7-banner a10-banner a10-banner-prev">
-                <strong>{shownPrevious?.headline || 'As-is architecture captured.'}</strong>
-                <p>{cleanedPrevBody}</p>
-              </div>
-              <div className="a5-panels a10-panels a10-panels-stack">
-                <section className="a5-panel">
-                  <h4>Design traits</h4>
-                  <dl className="a5-metrics">
-                    {cleanedPrevTraits.length ? (
-                      cleanedPrevTraits.map((c) => (
-                        <div key={`prev-${c.label}-${c.value}`}>
-                          <dt>{c.label}</dt>
-                          <dd>{c.value}</dd>
-                        </div>
-                      ))
-                    ) : (
-                      <div>
-                        <dt>System shape</dt>
-                        <dd>Legacy monolith (from prior agents)</dd>
-                      </div>
-                    )}
-                  </dl>
-                </section>
-                <section className="a5-panel">
-                  <h4>Estate metrics</h4>
-                  <dl className="a5-metrics">
-                    {prevMetrics.length ? (
-                      prevMetrics.map((m) => (
-                        <div key={`prev-m-${m.id || m.label}`}>
-                          <dt>{m.label}</dt>
-                          <dd>{formatMetric(m)}</dd>
-                        </div>
-                      ))
-                    ) : (
-                      <div>
-                        <dt>Programs / modules</dt>
-                        <dd>—</dd>
-                      </div>
-                    )}
-                  </dl>
-                </section>
-              </div>
-            </article>
+      <div className="dash-run-row a3-run-row" style={{ marginBottom: '10px' }}>
+        <button
+          className="landing-start"
+          type="button"
+          disabled={!canRun || busy}
+          onClick={() => void runAgent()}
+          style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
+        >
+          {busy ? 'Designing…' : runComplete || done ? '▶ Run this agent again' : '▶ Design target architecture'}
+        </button>
+        {!canRun && blockerHint ? <span className="dash-sub a2-blocker-hint">{blockerHint}</span> : null}
+      </div>
 
-            <article className="a10-compare-col a10-compare-target">
-              <header className="a10-compare-head">
-                <span className="a10-compare-badge target">Target</span>
-                <h3>Target architecture</h3>
-              </header>
-              <div className="a6-banner a7-banner a10-banner">
-                <strong>{resultHeadline || 'Target design ready.'}</strong>
-                <p>
-                  {resultBody ||
-                    'Every new service now has a specification — how it talks to others, what data it owns, how it authenticates.'}
-                </p>
-              </div>
-              <div className="a5-panels a10-panels a10-panels-stack">
-                <section className="a5-panel">
-                  <h4>Design choices</h4>
-                  <dl className="a5-metrics">
-                    {shownChoices.map((c) => (
-                      <div key={`${c.label}-${c.value}`}>
-                        <dt>{c.label}</dt>
-                        <dd>{c.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </section>
-                <section className="a5-panel">
-                  <h4>Contracts generated</h4>
-                  <dl className="a5-metrics">
-                    {shownContracts.map((m) => (
-                      <div key={m.id || m.label}>
-                        <dt>{m.label}</dt>
-                        <dd>{formatMetric(m)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </section>
-              </div>
-            </article>
+      {/* 4. RESULTS SECTION (Renders cleanly in-place below form controls once complete) */}
+      {(runComplete || done) && (shownChoices.length > 0 || shownContracts.length > 0) ? (
+        <section
+          className="a5-results a10-results"
+          aria-label="Target architecture results"
+          style={{
+            padding: '12px 14px',
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '8px',
+            marginTop: '10px',
+          }}
+        >
+          {/* Output Card Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '6px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <h4 style={{ fontSize: '12.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              📊 TARGET ARCHITECTURE OUTPUT &amp; BLUEPRINT MATRIX
+            </h4>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+              ✓ Target Design Ready
+            </span>
           </div>
 
-          {cleanedDeltas.length ? (
-            <section className="a10-deltas" aria-label="What changed">
-              <h4>What changed</h4>
-              <ul className="a10-delta-list">
-                {cleanedDeltas.map((d) => (
-                  <li key={`${d.aspect}-${d.from}-${d.to}`}>
-                    <span className="a10-delta-aspect">{d.aspect}</span>
-                    <span className="a10-delta-from">{d.from}</span>
-                    <span className="a10-delta-arrow" aria-hidden>
-                      →
+          {/* Compact Contracts Summary Pills */}
+          {shownContracts.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+              {shownContracts.map((m) => (
+                <div key={m.id || m.label} style={{ fontSize: '10.5px', fontWeight: 700, padding: '3px 8px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '4px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#38bdf8', textTransform: 'uppercase', fontSize: '9px', fontWeight: 900 }}>{m.label}:</span>
+                  <span>{formatMetric(m)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Sleek Side-by-Side Architectural Matrix (Zero Clutter) */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.5)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.08)', overflow: 'hidden', marginBottom: '10px' }}>
+            {/* Header Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 1.4fr', background: 'rgba(30, 41, 59, 0.8)', borderBottom: '1px solid rgba(56, 189, 248, 0.25)', padding: '6px 10px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>ARCHITECTURAL ASPECT</span>
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>PREVIOUS MONOLITH (AS-IS)</span>
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em' }}>TARGET MICROSERVICES (TO-BE)</span>
+            </div>
+
+            {/* Comparison Rows */}
+            {cleanedDeltas.length > 0 ? (
+              cleanedDeltas.map((d, idx) => (
+                <div
+                  key={`${d.aspect}-${idx}`}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.2fr 1.4fr 1.4fr',
+                    padding: '6px 10px',
+                    borderBottom: idx === cleanedDeltas.length - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)',
+                    background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.015)',
+                    alignItems: 'center',
+                    fontSize: '11px',
+                  }}
+                >
+                  <strong style={{ color: '#cbd5e1', fontWeight: 700 }}>{d.aspect}</strong>
+                  <span style={{ color: '#94a3b8' }}>{d.from}</span>
+                  <span style={{ color: '#f8fafc', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#4ade80', fontSize: '9.5px' }}>→</span> {d.to}
+                    {d.change ? <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>{d.change}</span> : null}
+                  </span>
+                </div>
+              ))
+            ) : (
+              /* Fallback direct choices comparison */
+              shownChoices.map((c, idx) => {
+                const prevVal = cleanedPrevTraits[idx]?.value || 'Legacy monolith / tightly coupled'
+                return (
+                  <div
+                    key={`${c.label}-${idx}`}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.2fr 1.4fr 1.4fr',
+                      padding: '6px 10px',
+                      borderBottom: idx === shownChoices.length - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)',
+                      background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.015)',
+                      alignItems: 'center',
+                      fontSize: '11px',
+                    }}
+                  >
+                    <strong style={{ color: '#cbd5e1', fontWeight: 700 }}>{c.label}</strong>
+                    <span style={{ color: '#94a3b8' }}>{prevVal}</span>
+                    <span style={{ color: '#f8fafc', fontWeight: 600 }}>
+                      <span style={{ color: '#4ade80', fontSize: '9.5px', marginRight: '4px' }}>→</span> {c.value}
                     </span>
-                    <span className="a10-delta-to">{d.to}</span>
-                    {d.change ? <span className="a10-delta-tag">{d.change}</span> : null}
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          {/* Activity Log */}
+          {log.length ? (
+            <div style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '6px 8px', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.04)', marginBottom: '10px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '2px' }}>ACTIVITY LOG</span>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                {log.map((line, i) => (
+                  <li key={`${line[0]}-${i}`} style={{ fontSize: '10px', fontFamily: 'monospace', color: line[0] === 'error' ? '#f87171' : line[0] === 'warn' ? '#facc15' : line[0] === 'ok' ? '#4ade80' : '#94a3b8' }}>
+                    {line[1]}
                   </li>
                 ))}
               </ul>
-            </section>
+            </div>
           ) : null}
 
-          <div className="dash-run-row a3-run-row a10-continue-row">
-            <button type="button" className="landing-start" onClick={() => onContinueNext?.()}>
-              {continueLabel || 'Continue to next step →'}
-            </button>
-            <span className="a10-complete-badge" aria-label="Step complete">
-              ✓ Step complete
-            </span>
-            <button
-              type="button"
-              className="landing-ghost"
-              disabled={busy}
-              onClick={() => {
-                setRunComplete(false)
-              }}
-            >
-              Adjust & re-run
-            </button>
+          {/* Explicit Next Agent Move Forward Button */}
+          <div className="dash-run-row a3-run-row a10-continue-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {onContinueNext ? (
+              <button type="button" className="landing-start" onClick={onContinueNext} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+                {continueLabel || '▶ Move Forward to G2: Architecture Approval Gate →'}
+              </button>
+            ) : null}
           </div>
-
-          {log.length ? (
-            <ul className="dash-activity a2-result-log" aria-label="Agent activity log">
-              {log.map((line, i) => (
-                <li key={`${line[0]}-${i}`} data-level={line[0]}>
-                  {line[1]}
-                </li>
-              ))}
-            </ul>
-          ) : null}
         </section>
       ) : null}
     </div>

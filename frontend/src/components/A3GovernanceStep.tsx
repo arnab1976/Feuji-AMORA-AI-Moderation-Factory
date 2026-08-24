@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type A3Brief, type LogLine } from '../api/client'
 import type { PathMapIntakeSnapshot } from './AgentGateMapStep'
 import type { ActivityPayload, GlossaryTerm } from './A1IntakeWizard'
+import { saveRiskThresholdConfig, getRiskThresholdConfig } from './AutoApproveRiskControl'
 
 interface Props {
   runId: string
@@ -49,12 +50,6 @@ const MODEL_TO_SENS: Record<string, string> = {
 
 function optLabel(opts: [string, string][], id: string): string {
   return opts.find(([v]) => v === id)?.[1] ?? id
-}
-
-function truncate(text: string, n = 160): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
 }
 
 export function A3GovernanceStep({
@@ -352,144 +347,256 @@ export function A3GovernanceStep({
     'Tick everything that applies. The agents will not send this data to public AI models.'
   const modelsLabel = brief?.models_label || 'Which AI models are allowed?'
   const gatesLabel = brief?.gates_label || 'Require manual approval at every gate?'
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   return (
-    <div className="a3-step a1-wizard mf-req">
-      <div className="mf-category-caption">
-        📊 2. STRATEGIC INTAKE &amp; CONTEXT MATRIX
-      </div>
-      <section className="a2-a1-context a3-context" aria-label="Prior context from A1 and A2">
-        <div className="a2-a1-context-head">
-          <h4>Domain Level Intake &amp; Context Matrix</h4>
-          <span className="a2-a1-lock">Shapes this policy</span>
-        </div>
-        <p className="dash-sub a2-a1-intro">
-          Sensitive-data options and risk posture are synthesized from the locked Factory
-          Administrator intake, agent movement path, and A2 portfolio ranking — not a fixed template.
-        </p>
-        <dl className="a2-a1-grid">
-          <div>
-            <dt>Category</dt>
-            <dd>{a1Context.categoryName}</dd>
+    <div className="a3-step a1-wizard mf-req" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single unified card, editable & lockable) */}
+      <section className="a2-a1-context a3-context" aria-label="Domain Level Intake & Context Matrix" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
           </div>
-          <div>
-            <dt>Application / title</dt>
-            <dd>{a1Context.projectName}</dd>
-          </div>
-          <div>
-            <dt>Strategy</dt>
-            <dd>
-              {a1Context.strategies.length > 1
-                ? a1Context.strategies.join(' · ')
-                : a1Context.strategyShort}
-            </dd>
-          </div>
-          <div>
-            <dt>A2 criticality</dt>
-            <dd>
-              {portfolio.criticality
-                || brief?.a2_criticality
-                || '— (run A2 first for ranking)'}
-            </dd>
-          </div>
-          <div>
-            <dt>Prior agent</dt>
-            <dd>
-              {brief?.prior_agent_id
-                ? `${brief.prior_agent_id} · ${brief.prior_agent_name || 'Portfolio ranking'}`
-                : 'A2 · Portfolio ranking'}
-            </dd>
-          </div>
-          {a1Context.requirement ? (
-            <div className="a2-a1-why">
-              <dt>Requirement / trend</dt>
-              <dd>{truncate(a1Context.requirement)}</dd>
-            </div>
-          ) : null}
-          {brief?.risk_summary ? (
-            <div className="a2-a1-why">
-              <dt>Risk posture</dt>
-              <dd>{brief.risk_summary}</dd>
-            </div>
-          ) : null}
-        </dl>
-        {brief?.context_line ? <p className="a2-context-chip">{brief.context_line}</p> : null}
-        {brief?.prior_line ? <p className="dash-sub">{brief.prior_line}</p> : null}
-      </section>
 
-      <div className="mf-category-caption" style={{ marginTop: '16px' }}>
-        ⚙️ 4. EXECUTION CONTROLS &amp; RISK POSTURE
-      </div>
-      <div className="a3-rules-head">
-        <h3>{formHeading}</h3>
-        {brief && (brief.suggested_model || brief.suggested_gates) ? (
-          <button type="button" className="landing-ghost a3-suggest-btn" onClick={applySuggested}>
-            Apply LLM suggestions
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
           </button>
-        ) : null}
-      </div>
+        </div>
 
-      <section className="a3-rule-card">
-        <h4>{sensLabel}</h4>
-        <p className="a3-rule-hint">{sensHint}</p>
-        {briefLoading ? (
-          <p className="dash-empty">Synthesizing sensitive-data classes…</p>
-        ) : (
-          <div className="a3-pills" role="group" aria-label={sensLabel}>
-            {sensOpts.map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                className={`a3-pill${sensitive.includes(id) ? ' on' : ''}`}
-                aria-pressed={sensitive.includes(id)}
-                onClick={() => toggleSensitive(id)}
-              >
-                {label}
-              </button>
-            ))}
+        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px 0', lineHeight: '1.4' }}>
+          Sensitive-data options and risk posture are synthesized from the locked Factory Administrator intake, agent movement path, and A2 portfolio ranking.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', background: 'rgba(15, 23, 42, 0.45)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
-        )}
-      </section>
 
-      <section className="a3-rule-card">
-        <h4>{modelsLabel}</h4>
-        <p className="a3-rule-hint">Choose one — derived sensitivity follows this choice.</p>
-        <div className="a3-pills" role="radiogroup" aria-label={modelsLabel}>
-          {modelOpts.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={`a3-pill${modelPolicy === id ? ' on' : ''}`}
-              aria-pressed={modelPolicy === id}
-              onClick={() => {
-                setModelPolicy(id)
-                setRunComplete(false)
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              A2 CRITICALITY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {portfolio.criticality || brief?.a2_criticality || '— (run A2 first)'}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Modernizing legacy code to Python.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
         </div>
       </section>
 
-      <section className="a3-rule-card">
-        <h4>{gatesLabel}</h4>
-        <p className="a3-rule-hint">Human checkpoints the factory must stop at.</p>
-        <div className="a3-pills" role="radiogroup" aria-label={gatesLabel}>
-          {gateOpts.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={`a3-pill${gatePolicy === id ? ' on' : ''}`}
-              aria-pressed={gatePolicy === id}
-              onClick={() => {
-                setGatePolicy(id)
-                setRunComplete(false)
-              }}
-            >
-              {label}
+      {/* 2. EXECUTION CONTROLS & RISK POSTURE (Single unified rich smart card) */}
+      <section className="a3-rule-card mf-single-card" style={{ padding: '12px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h3 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              ⚙️ EXECUTION CONTROLS &amp; RISK POSTURE
+            </h3>
+            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>
+              {formHeading} · Configure data sensitivity, allowed AI model engines, and gate approval policies.
+            </p>
+          </div>
+          {brief && (brief.suggested_model || brief.suggested_gates) ? (
+            <button type="button" className="landing-ghost a3-suggest-btn" onClick={applySuggested} style={{ fontSize: '11px', padding: '4px 10px' }}>
+              Apply LLM suggestions
             </button>
-          ))}
+          ) : null}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Sensitive Data Controls */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <strong style={{ fontSize: '11.5px', color: '#f8fafc', fontWeight: 700 }}>{sensLabel}</strong>
+              <small style={{ fontSize: '10.5px', color: '#94a3b8' }}>{sensHint}</small>
+            </div>
+            {briefLoading ? (
+              <p className="dash-empty" style={{ margin: '4px 0', fontSize: '11px' }}>Synthesizing sensitive-data classes…</p>
+            ) : (
+              <div className="a3-pills" role="group" aria-label={sensLabel} style={{ gap: '6px', marginTop: '6px' }}>
+                {sensOpts.map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`a3-pill${sensitive.includes(id) ? ' on' : ''}`}
+                    aria-pressed={sensitive.includes(id)}
+                    onClick={() => toggleSensitive(id)}
+                    style={{ fontSize: '11.5px', padding: '4px 10px' }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Model Engine Policy */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <strong style={{ fontSize: '11.5px', color: '#f8fafc', fontWeight: 700 }}>{modelsLabel}</strong>
+              <small style={{ fontSize: '10.5px', color: '#94a3b8' }}>Derived data sensitivity follows model choice.</small>
+            </div>
+            <div className="a3-pills" role="radiogroup" aria-label={modelsLabel} style={{ gap: '6px', marginTop: '6px' }}>
+              {modelOpts.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`a3-pill${modelPolicy === id ? ' on' : ''}`}
+                  aria-pressed={modelPolicy === id}
+                  onClick={() => {
+                    setModelPolicy(id)
+                    setRunComplete(false)
+                  }}
+                  style={{ fontSize: '11.5px', padding: '4px 10px' }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Gate Approval Checkpoints */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <strong style={{ fontSize: '11.5px', color: '#f8fafc', fontWeight: 700 }}>{gatesLabel}</strong>
+              <small style={{ fontSize: '10.5px', color: '#94a3b8' }}>Human checkpoints factory stops at.</small>
+            </div>
+            <div className="a3-pills" role="radiogroup" aria-label={gatesLabel} style={{ gap: '6px', marginTop: '6px' }}>
+              {gateOpts.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`a3-pill${gatePolicy === id ? ' on' : ''}`}
+                  aria-pressed={gatePolicy === id}
+                  onClick={() => {
+                    setGatePolicy(id)
+                    saveRiskThresholdConfig({
+                      ...getRiskThresholdConfig(),
+                      autoApproveMode: id === 'auto_low' ? 'prompt' : 'manual',
+                    })
+                    setRunComplete(false)
+                  }}
+                  style={{ fontSize: '11.5px', padding: '4px 10px' }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

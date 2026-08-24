@@ -460,15 +460,47 @@ class RepositoryDiscovery(Agent):
             ("info", f"Reading A1 context for «{project}»…"),
             ("info", "Connecting through the tool gateway with read-only access..."),
         ]
+        # Detect primary technology from intake context
+        comb = f"{category_id} {project} {intake.get('requirement', '')} {intake.get('category_name', '')} {params.get('a1_requirement', '')}".lower()
+        if "fortran" in comb or "f77" in comb or "f90" in comb:
+            crawler_name = "Fortran Web Crawler"
+            extracted_desc = "Fortran programs (.f, .f90, .for, .f77) & subroutines"
+            mod_type = "Fortran"
+        elif "cobol" in comb or "mainframe" in comb or "cbl" in comb:
+            crawler_name = "COBOL Web Crawler"
+            extracted_desc = "COBOL programs (.cbl, .cob, .cpy) & EXEC SQL statements"
+            mod_type = "COBOL"
+        elif "sas" in comb:
+            crawler_name = "SAS Web Crawler"
+            extracted_desc = "SAS programs (.sas, .sas7bdat, .sasmac, .inc) & PROC SQL queries"
+            mod_type = "SAS"
+        elif "cpp" in comb or "c++" in comb or "c/c++" in comb:
+            crawler_name = "C/C++ Web Crawler"
+            extracted_desc = "C/C++ source (.c, .cpp, .h, .hpp) & build modules"
+            mod_type = "C/C++"
+        elif "java" in comb or "spring" in comb:
+            crawler_name = "Java Web Crawler"
+            extracted_desc = "Java source (.java, .jsp, .xml) & class definitions"
+            mod_type = "Java"
+        elif "sql" in comb or "db2" in comb or "oracle" in comb:
+            crawler_name = "Database Web Crawler"
+            extracted_desc = "SQL/DDL files (.sql, .ddl, .pls) & schema scripts"
+            mod_type = "Database"
+        else:
+            cat_label = intake.get('category_name') or project or "Legacy"
+            crawler_name = f"{cat_label} Web Crawler"
+            extracted_desc = f"{cat_label} source programs, routines & configurations"
+            mod_type = cat_label
+
         if repo_urls:
             log.append(("ok", f"Repository pointers locked: {len(repo_urls)} location(s)"))
             web_targets = [u for u in repo_urls if u.lower().startswith(("http://", "https://", "ftp://", "sftp://")) or "sharepoint" in u.lower() or "mq/" in u.lower() or "git." in u.lower()]
             if web_targets:
-                log.append(("info", f"🌐 SAS Web Crawler active — crawling {len(web_targets)} target site/endpoint URL(s)…"))
+                log.append(("info", f"🌐 {crawler_name} active — crawling {len(web_targets)} target site/endpoint URL(s)…"))
                 for target in web_targets:
                     short_t = target if len(target) <= 85 else target[:82] + "…"
-                    log.append(("ok", f"🕷️ Crawled site «{short_t}» — extracted SAS programs (.sas, .sasmac, .inc) & PROC SQL queries"))
-                log.append(("ok", f"✅ SAS Web Crawler indexed {len(web_targets) * 14} SAS code modules directly from target sites"))
+                    log.append(("ok", f"🕷️ Crawled site «{short_t}» — extracted {extracted_desc}"))
+                log.append(("ok", f"✅ {crawler_name} indexed {len(web_targets) * 14} {mod_type} code modules directly from target sites"))
 
             for url in repo_urls[:6]:
                 short = url if len(url) <= 90 else url[:87] + "…"

@@ -101,10 +101,7 @@ export function SemanticContinuityAuditHeader({
   if (currentStepId === 'A1') return null
 
   return (
-    <div className="mf-semantic-continuity-container" style={{ marginBottom: '16px' }}>
-      <div className="mf-category-caption" style={{ marginBottom: '8px' }}>
-        📈 2. CONTINUITY AUDIT &amp; SIMILARITY HIGHLIGHTS
-      </div>
+    <div className="mf-semantic-continuity-container" style={{ marginBottom: '6px' }}>
       <div
         className="mf-similarity-top-badge"
         style={{
@@ -112,39 +109,39 @@ export function SemanticContinuityAuditHeader({
           justifyContent: 'space-between',
           alignItems: 'center',
           background: 'rgba(15, 23, 42, 0.85)',
-          border: '1px solid rgba(43, 184, 166, 0.4)',
-          borderRadius: '8px',
-          padding: '10px 16px',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+          border: '1px solid rgba(56, 189, 248, 0.3)',
+          borderRadius: '5px',
+          padding: '4px 10px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8' }}>
             AGENT CONTINUITY
           </span>
-          <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 600 }}>
+          <span style={{ fontSize: '11px', color: '#e2e8f0', fontWeight: 600 }}>
             {priorStepId} ({priorStepName}) → {currentStepId} ({currentStepName})
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span
             title="Real-time Jaccard Word Overlap Similarity between prior agent output and current step context"
             style={{
               background: parseFloat(similarityScore) > 95 ? 'rgba(43, 184, 166, 0.18)' : 'rgba(234, 179, 8, 0.18)',
               color: parseFloat(similarityScore) > 95 ? '#2dd4bf' : '#fef08a',
               border: parseFloat(similarityScore) > 95 ? '1px solid rgba(43, 184, 166, 0.5)' : '1px solid rgba(234, 179, 8, 0.5)',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontSize: '12px',
+              padding: '2px 8px',
+              borderRadius: '16px',
+              fontSize: '10.5px',
               fontWeight: 800,
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 0 10px rgba(43, 184, 166, 0.25)',
+              gap: '4px',
+              boxShadow: '0 0 8px rgba(43, 184, 166, 0.25)',
             }}
           >
-            <i style={{ width: '8px', height: '8px', borderRadius: '50%', background: parseFloat(similarityScore) > 95 ? '#2dd4bf' : '#eab308', display: 'inline-block' }} />
+            <i style={{ width: '6px', height: '6px', borderRadius: '50%', background: parseFloat(similarityScore) > 95 ? '#2dd4bf' : '#eab308', display: 'inline-block' }} />
             MEASURED SEMANTIC SIMILARITY: {similarityScore}%
           </span>
         </div>
@@ -154,23 +151,23 @@ export function SemanticContinuityAuditHeader({
       <div
         className="mf-yellow-audit-card"
         style={{
-          marginTop: '10px',
+          marginTop: '6px',
           background: auditLocked ? 'rgba(34, 197, 94, 0.08)' : 'rgba(234, 179, 8, 0.09)',
           border: auditLocked ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(234, 179, 8, 0.4)',
-          borderRadius: '8px',
-          padding: '14px 16px',
+          borderRadius: '6px',
+          padding: '8px 12px',
           transition: 'all 0.3s ease',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
                 background: auditLocked ? '#22c55e' : '#eab308',
                 color: '#0f172a',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                fontSize: '10px',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                fontSize: '9.5px',
                 fontWeight: 900,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
@@ -178,7 +175,7 @@ export function SemanticContinuityAuditHeader({
             >
               {auditLocked ? '✓ AUDIT LOCKED' : 'YELLOW AUDIT ALERT'}
             </span>
-            <strong style={{ color: auditLocked ? '#4ade80' : '#fef08a', fontSize: '13px', fontWeight: 700 }}>
+            <strong style={{ color: auditLocked ? '#4ade80' : '#fef08a', fontSize: '11.5px', fontWeight: 700 }}>
               Non-Similarity Audit: Inspect Yellow Items → Edit / Accept Recommended → Save & Carry Forward
             </strong>
           </div>
@@ -190,12 +187,12 @@ export function SemanticContinuityAuditHeader({
               background: auditLocked ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #eab308, #ca8a04)',
               color: '#0f172a',
               border: 'none',
-              borderRadius: '6px',
-              padding: '7px 16px',
+              borderRadius: '4px',
+              padding: '4px 12px',
               fontWeight: 900,
-              fontSize: '12px',
+              fontSize: '11px',
               cursor: 'pointer',
-              boxShadow: auditLocked ? '0 2px 10px rgba(34, 197, 94, 0.4)' : '0 2px 10px rgba(234, 179, 8, 0.4)',
+              boxShadow: auditLocked ? '0 2px 8px rgba(34, 197, 94, 0.4)' : '0 2px 8px rgba(234, 179, 8, 0.4)',
               transition: 'all 0.2s ease',
             }}
           >
@@ -204,63 +201,63 @@ export function SemanticContinuityAuditHeader({
         </div>
 
         {/* WORKFLOW SEQUENCE STEPS BADGE BAR */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap', fontSize: '11px' }}>
-          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px', color: '#cbd5e1' }}>
+        <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap', fontSize: '10px' }}>
+          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '3px', color: '#cbd5e1' }}>
             <b>Step 1:</b> Check Yellow Portion
           </span>
-          <span style={{ background: 'rgba(43, 184, 166, 0.15)', color: '#2dd4bf', padding: '2px 8px', borderRadius: '4px' }}>
+          <span style={{ background: 'rgba(43, 184, 166, 0.15)', color: '#2dd4bf', padding: '1px 6px', borderRadius: '3px' }}>
             <b>Step 2:</b> Recommended / Edit Active Value
           </span>
-          <span style={{ background: auditLocked ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: auditLocked ? '#4ade80' : '#fef08a', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+          <span style={{ background: auditLocked ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: auditLocked ? '#4ade80' : '#fef08a', padding: '1px 6px', borderRadius: '3px', fontWeight: 700 }}>
             <b>Step 3:</b> Click Save Audit
           </span>
-          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px', color: '#94a3b8' }}>
+          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '3px', color: '#94a3b8' }}>
             <b>Step 4:</b> Run Agent & Carry Forward
           </span>
         </div>
 
         {saveBanner && (
-          <div style={{ marginTop: '8px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '6px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 700 }}>
+          <div style={{ marginTop: '6px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>
             ✓ Yellow audit saved! Active language set to <b>«{userLangOverride}»</b>. Measured Semantic Similarity updated to <b>{similarityScore}%</b>. This audited fact is now carried forward to all downstream agents.
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '10px', marginTop: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '6px', marginTop: '8px' }}>
           {deviations.map((item) => (
             <div
               key={item.id}
               style={{
                 background: 'rgba(15, 23, 42, 0.75)',
                 border: '1px solid rgba(234, 179, 8, 0.3)',
-                borderRadius: '6px',
-                padding: '10px 12px',
+                borderRadius: '5px',
+                padding: '6px 10px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>{item.field}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', alignItems: 'center' }}>
+                <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>{item.field}</span>
                 <span
                   style={{
-                    fontSize: '10px',
+                    fontSize: '9.5px',
                     fontWeight: 900,
                     color: '#854d0e',
                     background: '#fef08a',
-                    padding: '2px 6px',
+                    padding: '1px 5px',
                     borderRadius: '3px',
-                    boxShadow: '0 0 6px rgba(254, 240, 138, 0.5)',
+                    boxShadow: '0 0 4px rgba(254, 240, 138, 0.5)',
                   }}
                 >
                   STRAY EXCEPTION: {item.foundWord}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '6px 0' }}>
-                <span style={{ fontSize: '10px', fontWeight: 800, color: '#2dd4bf', background: 'rgba(43, 184, 166, 0.15)', padding: '1px 6px', borderRadius: '3px', border: '1px solid rgba(43, 184, 166, 0.3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0' }}>
+                <span style={{ fontSize: '9.5px', fontWeight: 800, color: '#2dd4bf', background: 'rgba(43, 184, 166, 0.15)', padding: '1px 5px', borderRadius: '3px', border: '1px solid rgba(43, 184, 166, 0.3)' }}>
                   RECOMMENDED: {item.recommendedWord}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 600 }}>Audited Value:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                <span style={{ fontSize: '11px', color: '#e2e8f0', fontWeight: 600 }}>Audited Value:</span>
                 <input
                   type="text"
                   value={userLangOverride}
@@ -272,16 +269,16 @@ export function SemanticContinuityAuditHeader({
                     background: 'rgba(15, 23, 42, 0.95)',
                     border: auditLocked ? '1px solid #22c55e' : '1px solid #eab308',
                     color: auditLocked ? '#4ade80' : '#fef08a',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
                     fontWeight: 800,
-                    fontSize: '12px',
-                    width: '100px',
+                    fontSize: '11px',
+                    width: '80px',
                   }}
                 />
               </div>
 
-              <small style={{ color: '#94a3b8', fontSize: '11px', display: 'block', marginTop: '6px' }}>
+              <small style={{ color: '#94a3b8', fontSize: '10px', display: 'block', marginTop: '4px' }}>
                 {item.reason}
               </small>
             </div>

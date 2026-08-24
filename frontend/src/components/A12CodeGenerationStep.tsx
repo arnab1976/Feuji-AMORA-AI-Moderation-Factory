@@ -59,12 +59,6 @@ const FALLBACK_CHECKS: ChecklistItem[] = [
   { id: 'prov_ok', label: 'Confirm provenance is on before G3 approval', required: true },
 ]
 
-function truncate(text: string, n = 160): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
-
 function fmt(n: number): string {
   return n.toLocaleString()
 }
@@ -97,8 +91,6 @@ export function A12CodeGenerationStep({
   const [metrics, setMetrics] = useState<GenMetric[]>([])
   const [sampleServices, setSampleServices] = useState<SampleService[]>([])
   const [artefacts, setArtefacts] = useState<SampleArtefact[]>([])
-  const [resultHeadline, setResultHeadline] = useState('')
-  const [resultBody, setResultBody] = useState('')
   const [sourceFiles, setSourceFiles] = useState<A12SourceFile[]>([])
   const [activeFileId, setActiveFileId] = useState<string>('')
   const [filesLoading, setFilesLoading] = useState(false)
@@ -144,6 +136,12 @@ export function A12CodeGenerationStep({
     }
   }
 
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
   const a1Context = useMemo(
     () => ({
       categoryName: intake?.category_name || intake?.category_id || '—',
@@ -156,6 +154,21 @@ export function A12CodeGenerationStep({
     }),
     [intake],
   )
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   const checklist: ChecklistItem[] = useMemo(() => {
     const source = brief?.checklist?.length ? brief.checklist : FALLBACK_CHECKS
@@ -209,8 +222,6 @@ export function A12CodeGenerationStep({
         setMetrics(r.generated_metrics || [])
         setSampleServices(r.sample_services || [])
         setArtefacts(r.sample_artefacts || [])
-        setResultHeadline(r.result_headline || '')
-        setResultBody(r.result_body || '')
         const glossary: GlossaryTerm[] = r.glossary ?? []
         onResults({
           log: [
@@ -272,8 +283,6 @@ export function A12CodeGenerationStep({
       if (Array.isArray(codegen.metrics)) setMetrics(codegen.metrics as GenMetric[])
       if (Array.isArray(codegen.sample_services)) setSampleServices(codegen.sample_services as SampleService[])
       if (Array.isArray(codegen.artefacts)) setArtefacts(codegen.artefacts as SampleArtefact[])
-      if (typeof codegen.result_headline === 'string') setResultHeadline(codegen.result_headline)
-      if (typeof codegen.result_body === 'string') setResultBody(codegen.result_body)
       setRunComplete(true)
       onResults({
         log: r.log,
@@ -400,11 +409,6 @@ export function A12CodeGenerationStep({
         setSampleServices(brief.sample_services)
       }
       if (Array.isArray(codegen.artefacts)) setArtefacts(codegen.artefacts as SampleArtefact[])
-      else if (brief?.sample_artefacts?.length) setArtefacts(brief.sample_artefacts)
-      if (typeof codegen.result_headline === 'string') setResultHeadline(codegen.result_headline)
-      else setResultHeadline(brief?.result_headline || '')
-      if (typeof codegen.result_body === 'string') setResultBody(codegen.result_body)
-      else setResultBody(brief?.result_body || '')
       setRunComplete(true)
       onResults({
         log: res.result.log,
@@ -435,19 +439,8 @@ export function A12CodeGenerationStep({
     }
   }
 
-  const title = brief?.title || 'Code generation'
-  const lede =
-    brief?.lede ||
-    'Generates new services from approved architecture and rules; every method traces to an approved business rule.'
-  const formHeading = brief?.form_heading || 'Choose stack and extras'
-  const kicker = brief?.domain_kicker || 'Domain D · Design & build the new · Step A12'
-  const services = brief?.service_names || []
   const shownMetrics = metrics.length ? metrics : brief?.generated_metrics || []
   const shownServices = sampleServices.length ? sampleServices : brief?.sample_services || []
-  const shownArtefacts = artefacts.length ? artefacts : brief?.sample_artefacts || []
-  const projectCard = a1Context.requirement
-    ? truncate(a1Context.requirement, 140)
-    : a1Context.projectName
 
   const activeLegacyLang = useMemo(() => {
     const raw = brief?.legacy_language || ''
@@ -472,125 +465,189 @@ export function A12CodeGenerationStep({
     return 'Legacy'
   }, [brief?.legacy_language, a1Context])
 
+  function applySuggested() {
+    setStack(brief?.suggested_stack || 'java')
+    setExtras(brief?.suggested_extras?.length ? brief.suggested_extras : ['provenance', 'infra'])
+  }
+
   return (
     <div className="a12-step a10-step a7-step a1-wizard mf-req">
-      <p className="dash-kicker">{kicker}</p>
-      <h2 className="dash-title">{briefLoading ? 'Code generation' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Personalizing this step from your Factory Administrator (A1) context, path map, and approved architecture…'
-          : lede}
-      </p>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <section className="a2-a1-context" aria-label="A1 path and architecture context">
-        <div className="a2-a1-context-head">
-          <h4>Domain Level Intake &amp; Context Matrix</h4>
-          <span className="a2-a1-lock">Semantic continuity</span>
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
-        <p className="dash-sub a2-a1-intro">
-          Stack, checklist, and generated output stay close to the locked A1 combination, the active
-          movement path, and the architecture approved at G2.
-        </p>
-        <dl className="a2-a1-grid">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div>
-            <dt>From A1</dt>
-            <dd>{a1Context.categoryName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Strategy</dt>
-            <dd>{a1Context.strategyShort}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Project</dt>
-            <dd>{projectCard}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Map status</dt>
-            <dd>
-              {brief?.path_active_ids?.includes('A12')
-                ? 'Active · on path'
-                : brief?.path_active_ids?.length
-                  ? 'Path loaded'
-                  : '—'}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR STEP
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              G2 · Architecture Approval
+            </span>
           </div>
+
           <div>
-            <dt>Prior step</dt>
-            <dd>
-              {brief?.prior_agent_id
-                ? `${brief.prior_agent_id} · ${brief.prior_agent_name || ''}`
-                : 'G2 · Architecture Approval'}
-              {brief?.g2_approved ? ' · approved' : ''}
-            </dd>
-          </div>
-          <div>
-            <dt>Target stack</dt>
-            <dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              TARGET STACK
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
               {brief?.target_stack_hint || (stack === 'python' ? 'Python' : stack === 'java' ? 'Java' : stack === 'dotnet' ? '.NET' : stack)}
               {activeLegacyLang ? ` ← ${activeLegacyLang}` : ''}
-            </dd>
+            </span>
           </div>
+
           <div>
-            <dt>A9 services</dt>
-            <dd>{services.length ? services.join(' · ') : 'Awaiting A9'}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPROVED RULES
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {fmt(brief?.approved_rule_count ?? 0)} rules
+            </span>
           </div>
-          <div>
-            <dt>Approved rules</dt>
-            <dd>{fmt(brief?.approved_rule_count ?? 0)}</dd>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Modernizing legacy application estate.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
           </div>
-          {brief?.generation_plan ? (
-            <div className="a2-a1-span">
-              <dt>Generation plan</dt>
-              <dd>{brief.generation_plan}</dd>
-            </div>
-          ) : null}
-          {brief?.prior_line ? (
-            <div className="a2-a1-span">
-              <dt>Continuity</dt>
-              <dd>{brief.prior_line}</dd>
-            </div>
-          ) : null}
-        </dl>
-        {brief?.warning ? <p className="dash-sub a2-warn">{brief.warning}</p> : null}
+        </div>
       </section>
 
-      {!runComplete ? (
-        <>
-          <ChecklistPanel
-            items={checklist}
-            checked={checked}
-            disabled={briefLoading || busy}
-            title={brief?.checklist_heading || 'Operator checklist (required)'}
-            note={
-              (brief?.checklist_note ||
-                'Confirm every item before generation. Labels combine standard controls with A1, path, and strategy.') +
-              ' Generation is blocked until all items are confirmed.'
-            }
-            onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
-          />
-          {!checklistReady && checklist.length > 0 && (
-            <div className="dash-run-row">
-              <button
-                type="button"
-                className="landing-ghost"
-                disabled={briefLoading || busy}
-                onClick={() => {
-                  const next: Record<string, boolean> = {}
-                  for (const item of checklist) next[item.id] = true
-                  setChecked(next)
-                }}
-              >
-                Confirm all checklist items
-              </button>
-            </div>
-          )}
+      {/* 2. VERIFICATION CHECKLIST */}
+      <ChecklistPanel
+        items={checklist}
+        checked={checked}
+        disabled={briefLoading || busy}
+        title={brief?.checklist_heading || 'OPTIONAL / MANDATORY VERIFICATION CHECKLIST'}
+        note="Confirm each mandatory item before generating code. Labels combine standard controls with A1, path, and strategy."
+        onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
+      />
 
-          <h3 className="a4-form-heading">{formHeading}</h3>
-          {brief?.stack_hint ? <p className="dash-sub">{brief.stack_hint}</p> : null}
+      {/* 3. EXECUTION CONTROLS & GENERATION LENS (Single rich compact card) */}
+      <section className="a12-execution-card" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ EXECUTION CONTROLS &amp; GENERATION LENS
+          </h4>
+          <button
+            type="button"
+            className="landing-ghost a3-suggest-btn"
+            style={{ padding: '3px 8px', fontSize: '11px' }}
+            onClick={applySuggested}
+          >
+            Apply LLM suggestions
+          </button>
+        </div>
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.stack_label || 'What should the new code be written in?'}</h4>
-            <div className="a3-pills" role="radiogroup" aria-label="Target stack">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {brief?.stack_label || 'What should the new code be written in?'}
+            </span>
+            <div className="a3-pills" role="radiogroup" aria-label="Target stack" style={{ gap: '4px' }}>
               {stackOpts.map(([id, label]) => (
                 <button
                   key={id}
@@ -602,17 +659,19 @@ export function A12CodeGenerationStep({
                     setRunComplete(false)
                   }}
                   disabled={briefLoading}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-          </section>
+          </div>
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.extras_label || 'What else should be produced?'}</h4>
-            {brief?.extras_hint ? <p className="dash-sub">{brief.extras_hint}</p> : null}
-            <div className="a3-pills a12-extras" role="group" aria-label="Generation extras">
+          <div>
+            <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+              {brief?.extras_label || 'What else should be produced?'}
+            </span>
+            <div className="a3-pills a12-extras" role="group" aria-label="Generation extras" style={{ gap: '4px' }}>
               {extrasOpts.map(([id, label, badge]) => (
                 <button
                   key={id}
@@ -621,54 +680,63 @@ export function A12CodeGenerationStep({
                   aria-pressed={extras.includes(id)}
                   onClick={() => toggleExtra(id)}
                   disabled={briefLoading}
+                  style={{ padding: '4px 10px', fontSize: '11.5px' }}
                 >
                   <span>{label}</span>
                   {badge ? <em className="a12-extra-badge">{badge}</em> : null}
                 </button>
               ))}
             </div>
-          </section>
-
-          {blockerHint ? <p className="dash-sub a12-blocker">{blockerHint}</p> : null}
-          {error ? <p className="err">{error}</p> : null}
-
-          <div className="dash-run-row">
-            <button
-              className="landing-start"
-              type="button"
-              onClick={() => void runAgent()}
-              disabled={!canRun || busy}
-            >
-              {busy ? 'Generating…' : done ? 'Generate again' : '▶ Generate code'}
-            </button>
           </div>
-        </>
-      ) : (
-        <section className="a5-results a12-results" aria-label="Code generation results">
-          <div className="a5-results-banner">
-            <h3>{resultHeadline || brief?.result_headline || 'Code exists but is not trusted yet.'}</h3>
-            <p>{resultBody || brief?.result_body || ''}</p>
+        </div>
+      </section>
+
+      {blockerHint ? <p className="dash-sub a12-blocker">{blockerHint}</p> : null}
+      {error ? <p className="err">{error}</p> : null}
+
+      <div className="dash-run-row a3-run-row" style={{ marginBottom: '10px' }}>
+        <button
+          className="landing-start"
+          type="button"
+          onClick={() => void runAgent()}
+          disabled={!canRun || busy}
+          style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
+        >
+          {busy ? 'Generating…' : runComplete || done ? '▶ Generate code again' : '▶ Generate code'}
+        </button>
+      </div>
+
+      {/* 4. RESULTS SECTION (Renders cleanly in-place below form controls once complete) */}
+      {(runComplete || done) && (
+        <section className="a5-results a12-results" aria-label="Code generation results" style={{ padding: '12px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', marginTop: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '6px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <h4 style={{ fontSize: '12.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              📊 CODE GENERATION OUTPUT &amp; SERVICE BLUEPRINT
+            </h4>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+              ✓ Code Generated
+            </span>
           </div>
 
           {shownMetrics.length > 0 ? (
-            <div className="a5-metric-grid">
+            <div className="a5-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginBottom: '10px' }}>
               {shownMetrics.map((m) => (
-                <div key={m.id} className="a5-metric">
-                  <span className="a5-metric-label">{m.label}</span>
-                  <strong className="a5-metric-value">{formatMetric(m)}</strong>
+                <div key={m.id} className="a5-metric" style={{ padding: '8px 10px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '6px' }}>
+                  <span className="a5-metric-label" style={{ fontSize: '10px', color: '#94a3b8' }}>{m.label}</span>
+                  <strong className="a5-metric-value" style={{ fontSize: '16px', color: '#38bdf8', display: 'block', marginTop: '2px' }}>{formatMetric(m)}</strong>
                 </div>
               ))}
             </div>
           ) : null}
 
           {shownServices.length > 0 ? (
-            <div className="a12-service-list">
-              <h4>Services generated</h4>
-              <ul>
+            <div className="a12-service-list" style={{ marginBottom: '10px' }}>
+              <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', margin: '0 0 6px' }}>Services generated</h4>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {shownServices.map((s) => (
-                  <li key={s.name}>
-                    <strong>{s.name}</strong>
-                    <span>
+                  <li key={s.name} style={{ padding: '6px 10px', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                    <strong style={{ color: '#f8fafc' }}>{s.name}</strong>
+                    <span style={{ color: '#94a3b8' }}>
                       {s.stack} · {fmt(s.methods)} methods · {s.traces_to}
                     </span>
                   </li>
@@ -677,36 +745,23 @@ export function A12CodeGenerationStep({
             </div>
           ) : null}
 
-          {shownArtefacts.length > 0 ? (
-            <div className="a12-artefact-list">
-              <h4>Artefacts</h4>
-              <ul>
-                {shownArtefacts.map((a) => (
-                  <li key={a.id || a.path}>
-                    <strong>{a.label}</strong>
-                    <code>{a.path}</code>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          <section className="a12-code-panel" aria-label="Generated source code">
-            <div className="a12-code-head">
+          <section className="a12-code-panel" aria-label="Generated source code" style={{ marginBottom: '10px' }}>
+            <div className="a12-code-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div>
-                <h4>Generated source</h4>
-                <p className="dash-sub">
+                <h4 style={{ fontSize: '11.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', margin: 0 }}>Generated source</h4>
+                <p className="dash-sub" style={{ fontSize: '10px', margin: '2px 0 0', color: '#94a3b8' }}>
                   {filesLoading
                     ? 'Loading source files…'
                     : `${fmt(sourceFiles.length)} files ready to review, download, or push.`}
                 </p>
               </div>
-              <div className="a12-code-actions">
+              <div className="a12-code-actions" style={{ display: 'flex', gap: '6px' }}>
                 <button
                   type="button"
                   className="landing-ghost"
                   disabled={!sourceFiles.length || downloadBusy === 'zip'}
                   onClick={() => void downloadZip()}
+                  style={{ fontSize: '11px', padding: '3px 8px' }}
                 >
                   {downloadBusy === 'zip' ? 'Preparing ZIP…' : '⬇ Download ZIP'}
                 </button>
@@ -716,6 +771,7 @@ export function A12CodeGenerationStep({
                     className="landing-ghost"
                     disabled={downloadBusy === activeFile.id}
                     onClick={() => void downloadFile(activeFile.id)}
+                    style={{ fontSize: '11px', padding: '3px 8px' }}
                   >
                     {downloadBusy === activeFile.id ? 'Downloading…' : '⬇ Download file'}
                   </button>
@@ -751,7 +807,7 @@ export function A12CodeGenerationStep({
                 </div>
               </div>
             ) : (
-              <p className="dash-sub">
+              <p className="dash-sub" style={{ fontSize: '11px' }}>
                 {filesLoading
                   ? 'Materializing source…'
                   : 'No source files yet — generate code to populate this panel.'}
@@ -759,15 +815,13 @@ export function A12CodeGenerationStep({
             )}
           </section>
 
-          <section className="a12-github-panel a4-form-card" aria-label="Push to GitHub">
-            <h4>Push to GitHub</h4>
-            <p className="dash-sub">
-              Paste a GitHub personal access token below (used for this push only — not written to
-              disk). Token needs <code>repo</code> or Contents: Read and write. Repository accepts
-              <code> owner/name</code> or a full github.com URL.
+          <section className="a12-github-panel a4-form-card" aria-label="Push to GitHub" style={{ padding: '10px 12px', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)', marginBottom: '10px' }}>
+            <h4 style={{ fontSize: '11.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', margin: '0 0 4px' }}>Push to GitHub</h4>
+            <p className="dash-sub" style={{ fontSize: '10.5px', margin: '0 0 8px' }}>
+              Paste a GitHub token below to publish generated code to a repository.
             </p>
-            <div className="a12-github-form">
-              <label className="a12-github-token">
+            <div className="a12-github-form" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px' }}>
+              <label className="a12-github-token" style={{ fontSize: '10.5px' }}>
                 GitHub token <span className="a12-required">required</span>
                 <input
                   type="password"
@@ -777,19 +831,21 @@ export function A12CodeGenerationStep({
                   onChange={(e) => setGithubToken(e.target.value)}
                   placeholder="ghp_… or github_pat_…"
                   disabled={githubBusy}
+                  style={{ fontSize: '11px', padding: '3px 6px' }}
                 />
               </label>
-              <label>
-                Repository (owner/name or URL)
+              <label style={{ fontSize: '10.5px' }}>
+                Repository (owner/name)
                 <input
                   type="text"
                   value={githubRepo}
                   onChange={(e) => setGithubRepo(e.target.value)}
                   placeholder="Arnab-Feuji/Kuch-bhi"
                   disabled={githubBusy}
+                  style={{ fontSize: '11px', padding: '3px 6px' }}
                 />
               </label>
-              <label>
+              <label style={{ fontSize: '10.5px' }}>
                 Branch
                 <input
                   type="text"
@@ -797,30 +853,30 @@ export function A12CodeGenerationStep({
                   onChange={(e) => setGithubBranch(e.target.value)}
                   placeholder="main"
                   disabled={githubBusy}
+                  style={{ fontSize: '11px', padding: '3px 6px' }}
                 />
               </label>
-              <label className="a12-github-private">
+              <label className="a12-github-private" style={{ fontSize: '10.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <input
                   type="checkbox"
                   checked={githubPrivate}
                   onChange={(e) => setGithubPrivate(e.target.checked)}
                   disabled={githubBusy}
                 />
-                Create as private repo if missing
+                Private repo
               </label>
             </div>
             {githubError ? <p className="err">{githubError}</p> : null}
             {githubPublish?.published ? (
-              <p className="dash-sub a12-github-ok">
+              <p className="dash-sub a12-github-ok" style={{ fontSize: '11px', marginTop: '6px' }}>
                 Pushed {fmt(githubPublish.file_count || 0)} files to{' '}
                 <a href={githubPublish.html_url || githubPublish.tree_url} target="_blank" rel="noreferrer">
                   {githubPublish.full_name || 'repository'}
                 </a>
                 {githubPublish.branch ? ` · ${githubPublish.branch}` : ''}
-                {githubPublish.published_at ? ` · ${githubPublish.published_at}` : ''}
               </p>
             ) : null}
-            <div className="dash-run-row">
+            <div className="dash-run-row" style={{ marginTop: '8px' }}>
               <button
                 type="button"
                 className="landing-start"
@@ -831,6 +887,7 @@ export function A12CodeGenerationStep({
                   (!githubToken.trim() && !githubAuthConfigured)
                 }
                 onClick={() => void pushToGithub()}
+                style={{ fontSize: '11.5px', padding: '4px 12px' }}
               >
                 {githubBusy ? 'Pushing…' : githubPublish?.published ? 'Push again to GitHub' : 'Push to GitHub'}
               </button>
@@ -838,11 +895,11 @@ export function A12CodeGenerationStep({
           </section>
 
           {log.length > 0 ? (
-            <div className="a5-log">
-              <h4>Activity</h4>
-              <ul>
+            <div className="a5-log" style={{ marginBottom: '10px' }}>
+              <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', margin: '0 0 4px' }}>Activity Log</h4>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
                 {log.map((line, i) => (
-                  <li key={`${line[0]}-${i}`} className={`log-${line[0]}`}>
+                  <li key={`${line[0]}-${i}`} style={{ fontSize: '10px', fontFamily: 'monospace', color: line[0] === 'error' ? '#f87171' : line[0] === 'warn' ? '#facc15' : line[0] === 'ok' ? '#4ade80' : '#94a3b8' }}>
                     {line[1]}
                   </li>
                 ))}
@@ -850,20 +907,10 @@ export function A12CodeGenerationStep({
             </div>
           ) : null}
 
-          <div className="dash-run-row">
-            <button
-              className="landing-ghost"
-              type="button"
-              onClick={() => {
-                setRunComplete(false)
-                setChecked({})
-              }}
-            >
-              Adjust &amp; generate again
-            </button>
+          <div className="dash-run-row a3-run-row a10-continue-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {onContinueNext ? (
-              <button className="landing-start" type="button" onClick={onContinueNext}>
-                {continueLabel || 'Continue to next step →'}
+              <button className="landing-start" type="button" onClick={onContinueNext} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+                {continueLabel || '▶ Move Forward to G3: Code Quality Gate →'}
               </button>
             ) : null}
           </div>

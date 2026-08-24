@@ -195,60 +195,75 @@ export function AgentGateMapStep({
 
   return (
     <div className="pm-page">
-      <div className="pm-top">
-        <div className="pm-brand">
-          <span className="landing-mark amora-mark">A</span>
-          <div>
-            <strong>AMORA</strong>
-            <p>Agent &amp; gate map · from your A1 selections</p>
+      {/* Sticky Frozen Top Pane for Agent & Gate Map */}
+      <div
+        className="mf-sticky-top-freeze-map"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000,
+          background: 'rgba(6, 9, 17, 0.96)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(56, 189, 248, 0.35)',
+          boxShadow: '0 6px 24px rgba(0, 0, 0, 0.6)',
+        }}
+      >
+        <div className="pm-top">
+          <div className="pm-brand">
+            <span className="landing-mark amora-mark">A</span>
+            <div>
+              <strong>AMORA</strong>
+              <p>Agent &amp; gate map · from your A1 selections</p>
+            </div>
+          </div>
+          <div className="pm-nav">
+            <button type="button" className="pm-btn pm-btn-ghost" onClick={onBack}>
+              ← Back
+            </button>
+            <button type="button" className="pm-btn pm-btn-ghost" onClick={onEdit}>
+              Edit intake
+            </button>
+            <button type="button" className="pm-btn pm-btn-primary" onClick={onHome}>
+              Home
+            </button>
           </div>
         </div>
-        <div className="pm-nav">
-          <button type="button" className="pm-btn pm-btn-ghost" onClick={onBack}>
-            ← Back
-          </button>
-          <button type="button" className="pm-btn pm-btn-ghost" onClick={onEdit}>
-            Edit intake
-          </button>
-          <button type="button" className="pm-btn pm-btn-primary" onClick={onHome}>
-            Home
-          </button>
-        </div>
-      </div>
 
-      {data?.summary.active_ids?.length ? (
-        <div className="mf-path-bar" aria-label="Agent movement direction">
-          <div className="dash-wrap mf-path-bar-inner">
-            <span className="mf-path-bar-label">Agent path</span>
-            <nav className="mf-path-trail">
-              {data.summary.active_ids.map((id, i) => (
-                <span key={id} className="mf-path-seg">
-                  {i > 0 ? (
-                    <span className="mf-path-arrow" aria-hidden="true">
-                      →
+        {data?.summary.active_ids?.length ? (
+          <div className="mf-path-bar" aria-label="Agent movement direction">
+            <div className="dash-wrap mf-path-bar-inner">
+              <span className="mf-path-bar-label">Agent path</span>
+              <nav className="mf-path-trail">
+                {data.summary.active_ids.map((id, i) => (
+                  <span key={id} className="mf-path-seg">
+                    {i > 0 ? (
+                      <span className="mf-path-arrow" aria-hidden="true">
+                        →
+                      </span>
+                    ) : null}
+                    <span
+                      className={`mf-path-node${id === data.summary.next_after_a1 ? ' on' : ''}${id.startsWith('G') ? ' gate' : ''}`}
+                    >
+                      {id}
                     </span>
-                  ) : null}
-                  <span
-                    className={`mf-path-node${id === data.summary.next_after_a1 ? ' on' : ''}${id.startsWith('G') ? ' gate' : ''}`}
-                  >
-                    {id}
                   </span>
-                </span>
-              ))}
-            </nav>
-            <span className="mf-path-bar-next">
-              Next · <b>{data.summary.next_after_a1}</b>
-            </span>
+                ))}
+              </nav>
+              <span className="mf-path-bar-next">
+                Next · <b>{data.summary.next_after_a1}</b>
+              </span>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="mf-path-bar" aria-label="Agent movement direction">
-          <div className="dash-wrap mf-path-bar-inner">
-            <span className="mf-path-bar-label">Agent path</span>
-            <span className="mf-path-bar-empty">Scoring path from your intake…</span>
+        ) : (
+          <div className="mf-path-bar" aria-label="Agent movement direction">
+            <div className="dash-wrap mf-path-bar-inner">
+              <span className="mf-path-bar-label">Agent path</span>
+              <span className="mf-path-bar-empty">Scoring path from your intake…</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="pm-shell">
         <div className="pm-hero">

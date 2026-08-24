@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type A16Brief, type LogLine } from '../api/client'
 import type { PathMapIntakeSnapshot } from './AgentGateMapStep'
 import type { ActivityPayload } from './A1IntakeWizard'
+import { ChecklistPanel } from './ChecklistPanel'
 
 interface Props {
   runId: string
@@ -42,7 +43,6 @@ export function A16SelfHealingStep({
   continueLabel,
 }: Props) {
   const [brief, setBrief] = useState<A16Brief | null>(null)
-  const [briefLoading, setBriefLoading] = useState(true)
   const [maxAttempts, setMaxAttempts] = useState('3')
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [busy, setBusy] = useState(false)
@@ -60,15 +60,17 @@ export function A16SelfHealingStep({
     escalated?: number
   } | null>(null)
 
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
   const a1Context = useMemo(() => {
-    const catName = intake?.category_name || intake?.category_id || '1. Legacy source-code data'
-    const projName =
-      intake?.project_name ||
-      'Convert old Fortran code to new Java based code. The business context or the outcome should be similar'
-    const req =
-      intake?.requirement ||
-      'Modernizing the legacy Fortran code to a Java-based system will enhance maintainability, improve integration with contemporary systems, and support cloud deployment.'
-    const strat = intake?.strategy_short || intake?.strategies?.[0] || 'Incremental Refactor to Java'
+    const catName = intake?.category_name || intake?.category_id || '—'
+    const projName = intake?.project_name || '—'
+    const req = intake?.requirement || ''
+    const strat = intake?.strategy_short || intake?.strategies?.[0] || '—'
     return {
       categoryName: catName,
       projectName: projName,
@@ -78,8 +80,22 @@ export function A16SelfHealingStep({
   }, [intake])
 
   useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
+
+  useEffect(() => {
     let cancelled = false
-    setBriefLoading(true)
     setError(null)
     setRunComplete(done)
     setLog([])
@@ -108,7 +124,6 @@ export function A16SelfHealingStep({
       .then((r) => {
         if (cancelled) return
         setBrief(r)
-        setBriefLoading(false)
         if (r.suggested_max_attempts) {
           setMaxAttempts(r.suggested_max_attempts)
         }
@@ -136,7 +151,6 @@ export function A16SelfHealingStep({
       })
       .catch(() => {
         if (cancelled) return
-        setBriefLoading(false)
       })
 
     return () => {
@@ -215,21 +229,6 @@ export function A16SelfHealingStep({
     ]
   }, [brief?.checklist, a1Context])
 
-  const checkedCount = Object.values(checked).filter(Boolean).length
-  const allChecked = checkedCount === checklistItems.length
-
-  function toggleAll() {
-    if (allChecked) {
-      setChecked({})
-    } else {
-      const next: Record<string, boolean> = {}
-      checklistItems.forEach((item) => {
-        next[item.id] = true
-      })
-      setChecked(next)
-    }
-  }
-
   async function runAgent() {
     setBusy(true)
     setError(null)
@@ -281,10 +280,6 @@ export function A16SelfHealingStep({
     }
   }
 
-  const categoryDisplay = brief?.cards?.from_a1 || a1Context.categoryName
-  const strategyDisplay = brief?.cards?.strategy || a1Context.strategyShort
-  const projectDisplay = brief?.cards?.project || a1Context.projectName
-
   const casesToDisplay = healingCases.length > 0
     ? healingCases
     : [
@@ -331,240 +326,323 @@ export function A16SelfHealingStep({
       ]
 
   return (
-    <div className="a16-step step-page-content">
-      {/* Top Breadcrumb Header */}
-      <div className="a16-top-meta">
-        <span className="a16-breadcrumb">
-          DOMAIN E · TEST &amp; PROVE IT WORKS · AGENT A16 · ACTIVE · ON PATH
-        </span>
-      </div>
-
-      <h1 className="a16-main-title">
-        Self-healing {briefLoading ? <span className="a16-cases-count-badge">Loading LLM context…</span> : null}
-      </h1>
-      <p className="a16-lede">
-        Applies bounded fixes from triage diagnoses; escalates to humans when attempts are exhausted.
-      </p>
-
-      {/* 4 Cards Header Matching Snapshot */}
-      <div className="a16-cards-grid">
-        <div className="a16-card">
-          <span className="a16-card-label">FROM A1</span>
-          <h3 className="a16-card-value">{categoryDisplay}</h3>
-        </div>
-
-        <div className="a16-card">
-          <span className="a16-card-label">STRATEGY</span>
-          <h3 className="a16-card-value">{strategyDisplay}</h3>
-        </div>
-
-        <div className="a16-card">
-          <span className="a16-card-label">PROJECT</span>
-          <h3 className="a16-card-value">{projectDisplay}</h3>
-        </div>
-
-        <div className="a16-card a16-card-map">
-          <span className="a16-card-label">MAP STATUS</span>
-          <div className="a16-map-circle-wrap">
-            <span className="a16-map-status-text">Active · on path</span>
-            <div className="a16-map-bg-circle" />
+    <div className="a16-step step-page-content mf-req">
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
           </div>
-        </div>
-      </div>
 
-      {/* Operator Checklist (Optional) Section */}
-      <div className="a16-checklist-box">
-        <div className="a16-checklist-header">
-          <div className="a16-checklist-title-group">
-            <h3 className="a16-checklist-title">OPERATOR CHECKLIST (OPTIONAL)</h3>
-            <p className="a16-checklist-note">
-              Checklist items combine the step&apos;s standard controls with your A1 category, requirement, strategy, and the agent &amp; gate map combination. These do not block Run — confirm them when useful, or use Confirm all.
-            </p>
-          </div>
           <button
             type="button"
-            className={`a16-checklist-count-btn ${allChecked ? 'all-done' : ''}`}
-            onClick={toggleAll}
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
           >
-            {checkedCount}/{checklistItems.length} complete
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
           </button>
         </div>
 
-        <div className="a16-checklist-items">
-          {checklistItems.map((item) => {
-            const isChecked = Boolean(checked[item.id])
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR STEP
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              A15 · Failure Triage
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              MOVEMENT PATH
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {brief?.movement_path || 'A14 Test generation -> A15 Triage -> A16 Self-healing'}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Bounded autonomous code repair & escalation.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 2. HEALING TARGETS & TRIAGE DIAGNOSES (Single compact card) */}
+      <section className="a16-section" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ HEALING TARGETS &amp; TRIAGE DIAGNOSES
+          </h4>
+          <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            {casesToDisplay.length} Cases Identified
+          </span>
+        </div>
+
+        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px', lineHeight: '1.4' }}>
+          Derived from A15 Triage findings and active test execution failures. Bounded auto-repair applies only to non-destructive issues.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '6px' }}>
+          {casesToDisplay.map((hc) => (
+            <div key={hc.id} style={{ padding: '6px 8px', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <b style={{ fontSize: '11px', color: '#38bdf8' }}>{hc.title}</b>
+                <span style={{ fontSize: '9.5px', color: hc.can_auto_heal ? '#4ade80' : '#facc15', background: hc.can_auto_heal ? 'rgba(34,197,94,0.12)' : 'rgba(234,179,8,0.12)', padding: '1px 5px', borderRadius: '3px', border: hc.can_auto_heal ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(234,179,8,0.3)' }}>
+                  {hc.safety_status}
+                </span>
+              </div>
+              <code style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '2px', wordBreak: 'break-all' }}>{hc.target}</code>
+              <span style={{ display: 'block', fontSize: '11px', color: '#cbd5e1', lineHeight: '1.3' }}>Fix: {hc.proposed_fix}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. VERIFICATION CHECKLIST */}
+      <ChecklistPanel
+        title={(brief as Record<string, unknown> | null)?.checklist_heading as string || 'OPTIONAL / MANDATORY VERIFICATION CHECKLIST'}
+        items={checklistItems.map((c) => ({ id: c.id, label: c.label, required: c.required ?? true }))}
+        checked={checked}
+        note={(brief as Record<string, unknown> | null)?.checklist_note as string || 'Confirm each mandatory verification item before executing self-healing repair runs.'}
+        onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
+      />
+
+      {/* 4. EXECUTION CONTROLS & SELF-HEALING BOUNDS (Form controls REMAIN VISIBLE post-execution) */}
+      <section className="a16-section" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '10px 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ EXECUTION CONTROLS &amp; SELF-HEALING BOUNDS
+          </h4>
+          <button
+            type="button"
+            className="landing-ghost a3-suggest-btn"
+            style={{ padding: '3px 10px', fontSize: '11px' }}
+            onClick={() => setMaxAttempts(brief?.suggested_max_attempts || '3')}
+          >
+            Apply LLM suggestions
+          </button>
+        </div>
+
+        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px' }}>
+          Specify maximum autonomous repair attempt threshold before escalating to human engineers:
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+          {[
+            { id: '3', label: 'Three tries, then ask a person', hint: 'Maximum automation with safe fallback' },
+            { id: '1', label: 'One try only', hint: 'Single-attempt healing' },
+            { id: '0', label: 'Never fix by itself — always ask a person', hint: 'Manual review required' },
+          ].map((opt) => {
+            const isSel = maxAttempts === opt.id
             return (
               <label
-                key={item.id}
-                className={`a16-checklist-item ${isChecked ? 'checked' : ''}`}
+                key={opt.id}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '5px',
+                  background: isSel ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
+                  border: isSel ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                  cursor: 'pointer',
+                  fontSize: '11.5px',
+                }}
               >
                 <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={(e) =>
-                    setChecked((prev) => ({ ...prev, [item.id]: e.target.checked }))
-                  }
+                  type="radio"
+                  name="a16-max-attempts"
+                  checked={isSel}
+                  onChange={() => setMaxAttempts(opt.id)}
                 />
-                <span className="a16-checklist-item-text">{item.label}</span>
+                <span style={{ color: isSel ? '#38bdf8' : '#cbd5e1', fontWeight: isSel ? 700 : 500 }}>
+                  {opt.label}
+                  <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '6px' }}>({opt.hint})</span>
+                </span>
               </label>
             )
           })}
         </div>
-      </div>
 
-      {/* Self Healing Bounded Controls */}
-      <div className="a16-section">
-        <h3 className="a16-section-title">Bounded Self-Healing Controls</h3>
-        <p className="a16-section-subtitle">
-          How many times may the factory try to fix a failure itself before escalating to a human engineer?
-        </p>
+        {error && <div style={{ fontSize: '11.5px', color: '#f87171', background: 'rgba(239,68,68,0.15)', padding: '6px 10px', borderRadius: '4px', margin: '0 0 8px' }}>{error}</div>}
 
-        <div className="a16-options-grid" role="radiogroup" aria-label="Max healing attempts">
-          {[
-            { id: '3', label: 'Three tries, then ask a person', hint: 'Recommended for maximum automation with safe fallback' },
-            { id: '1', label: 'One try only', hint: 'Single-attempt healing before human escalation' },
-            { id: '0', label: 'Never fix by itself — always ask a person', hint: 'Manual review required for every triage failure' },
-          ].map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`a16-option-card ${maxAttempts === opt.id ? 'active' : ''}`}
-              onClick={() => setMaxAttempts(opt.id)}
-            >
-              <div className="a16-option-radio">
-                <span className={`a16-radio-dot ${maxAttempts === opt.id ? 'on' : ''}`} />
-              </div>
-              <div className="a16-option-info">
-                <strong>{opt.label}</strong>
-                <p>{opt.hint}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Healing Required & Triage Diagnoses */}
-      <div className="a16-section">
-        <div className="a16-section-header">
-          <div>
-            <h3 className="a16-section-title">Required Healing &amp; Triage Diagnoses</h3>
-            <p className="a16-section-subtitle">
-              Derived from A15 Triage results, movement path, and A1 requirement context.
-            </p>
-          </div>
-          <span className="a16-cases-count-badge">{casesToDisplay.length} Healing Cases Identified</span>
-        </div>
-
-        <div className="a16-cases-list">
-          {casesToDisplay.map((hc) => (
-            <div key={hc.id} className={`a16-case-card ${hc.can_auto_heal ? 'auto' : 'escalate'}`}>
-              <div className="a16-case-top">
-                <span className={`a16-class-tag ${hc.failure_class.toLowerCase()}`}>
-                  {hc.failure_class}
-                </span>
-                <span className={`a16-safety-badge ${hc.can_auto_heal ? 'safe' : 'human'}`}>
-                  {hc.safety_status}
-                </span>
-              </div>
-
-              <h4 className="a16-case-title">{hc.title}</h4>
-              <div className="a16-case-target">
-                <code>{hc.target}</code>
-              </div>
-
-              <div className="a16-case-details-grid">
-                <div>
-                  <span className="a16-detail-lbl">Symptom</span>
-                  <p className="a16-detail-val">{hc.symptom}</p>
-                </div>
-                <div>
-                  <span className="a16-detail-lbl">Proposed Fix</span>
-                  <p className="a16-detail-val">{hc.proposed_fix}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {error ? (
-        <div className="a16-error-banner">
-          <p>{error}</p>
-        </div>
-      ) : null}
-
-      {/* Run Action Bar */}
-      <div className="a16-actions-bar">
-        <button
-          type="button"
-          className="a16-run-btn"
-          onClick={runAgent}
-          disabled={busy}
-        >
-          {busy ? <span className="a16-spinner" /> : null}
-          {busy
-            ? 'Applying Self-Healing Fixes...'
-            : runComplete
-              ? 'Run Self-Healing Agent again'
-              : 'Run Self-Healing Agent'}
-        </button>
-
-        {runComplete && onContinueNext ? (
+        <div className="dash-run-row a3-run-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             type="button"
-            className="a16-continue-btn"
-            onClick={onContinueNext}
+            className="landing-start"
+            disabled={busy}
+            onClick={runAgent}
+            style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
           >
-            {continueLabel || 'Continue to next step →'}
+            {busy ? 'Applying Self-Healing Fixes…' : '▶ Run Agent A16 (Self-Healing Specialist)'}
           </button>
-        ) : null}
-      </div>
 
-      {/* Output Terminal / Execution Results */}
-      {log.length > 0 ? (
-        <div className="a16-section a16-results-section">
-          <h3 className="a16-section-title">Execution Results &amp; Verification</h3>
-          {resultHeadline ? <h4 className="a16-result-headline">{resultHeadline}</h4> : null}
-          {resultBody ? <p className="a16-result-body">{resultBody}</p> : null}
+          {runComplete && (
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              ✓ Self-Healing Execution Complete
+            </span>
+          )}
+        </div>
+      </section>
 
-          {testResults ? (
-            <div className="a16-metrics-strip">
-              <div className="a16-metric">
-                <span>Total Tests</span>
-                <strong>{testResults.total ?? 45}</strong>
-              </div>
-              <div className="a16-metric">
-                <span>Passed</span>
-                <strong className="green">{testResults.passed ?? 44}</strong>
-              </div>
-              <div className="a16-metric">
-                <span>Healed Automatically</span>
-                <strong className="teal">{testResults.healed ?? 3}</strong>
-              </div>
-              <div className="a16-metric">
-                <span>Escalated to Human</span>
-                <strong className="amber">{testResults.escalated ?? 1}</strong>
-              </div>
+      {/* 5. IN-PLACE OUTPUT & REPAIR BLUEPRINT (Renders below form controls) */}
+      {runComplete && (
+        <section className="a16-results-panel" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: '8px', margin: '10px 0 0 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              📊 SELF-HEALING EXECUTION OUTPUT &amp; REPAIR BLUEPRINT
+            </h4>
+            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+              A16 OUTPUT READY
+            </span>
+          </div>
+
+          {resultHeadline && (
+            <p style={{ fontSize: '11.5px', color: '#cbd5e1', margin: '0 0 4px', fontWeight: 600 }}>
+              {resultHeadline}
+            </p>
+          )}
+          {resultBody && (
+            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px' }}>
+              {resultBody}
+            </p>
+          )}
+
+          {/* Metric Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase' }}>TOTAL TESTS</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#f8fafc' }}>{testResults?.total ?? 45} Verified</span>
             </div>
-          ) : null}
-
-          <div className="a16-terminal-box">
-            <div className="a16-terminal-header">
-              <span>A16 · Self-healing Execution Terminal</span>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase' }}>PASSED</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#4ade80' }}>{testResults?.passed ?? 44} Passed</span>
             </div>
-            <ul className="a16-terminal-logs">
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(45, 212, 191, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#2dd4bf', textTransform: 'uppercase' }}>AUTO-HEALED</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#2dd4bf' }}>{testResults?.healed ?? 3} Patches</span>
+            </div>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(234, 179, 8, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#facc15', textTransform: 'uppercase' }}>ESCALATED</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#facc15' }}>{testResults?.escalated ?? 1} Human Review</span>
+            </div>
+          </div>
+
+          {/* Log Stream */}
+          <div className="a16-terminal-box" style={{ maxHeight: '120px', overflowY: 'auto', background: '#090d16', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '10px' }}>
+            <ul className="a16-terminal-logs" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {log.map(([level, msg], idx) => (
-                <li key={`${idx}-${msg}`} className={`a16-log-line ${level}`}>
-                  <span className="a16-log-icon">
-                    {level === 'ok' ? '✓' : level === 'warn' ? '⚠' : level === 'hl' ? '★' : 'ℹ'}
-                  </span>
-                  <span className="a16-log-msg">{msg}</span>
+                <li key={`${idx}-${msg}`} style={{ fontSize: '11px', lineHeight: '1.4', color: level === 'ok' ? '#4ade80' : level === 'warn' ? '#facc15' : '#cbd5e1' }}>
+                  <span style={{ opacity: 0.7 }}>[{level.toUpperCase()}]</span> {msg}
                 </li>
               ))}
             </ul>
           </div>
-        </div>
-      ) : null}
+
+          {/* Move Forward Action Button */}
+          <div className="dash-run-row a3-run-row a10-continue-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+            {onContinueNext ? (
+              <button className="landing-start" type="button" onClick={onContinueNext} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+                {continueLabel || '▶ Move Forward to G5: Equivalence & Validation Gate →'}
+              </button>
+            ) : null}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

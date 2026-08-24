@@ -41,14 +41,14 @@ export const AGENT_REGISTRY: Record<string, AgentMetaData> = {
     id: 'A5',
     name: 'Legacy Deep Analysis Agent',
     role: 'Static Analysis & AST Parsing Specialist',
-    definition: 'Performs AST parsing, control-flow extraction, and complexity scoring across legacy SAS, Fortran, and COBOL modules.',
+    definition: 'Performs AST parsing, control-flow extraction, and complexity scoring across legacy SAS, Fortran, and COBOL modules — uncovering structural complexities to guide Python modernization.',
     domain: 'Domain B · Understand Old Code',
   },
   A6: {
     id: 'A6',
     name: 'Business Rules Discovery Agent',
     role: 'Domain Knowledge Engineer',
-    definition: 'Extracts implicit business heuristics, calculation formulas, and validation logic from legacy source code into structured rule catalogs.',
+    definition: 'Reads legacy source code (SAS DATA steps, PROC SQL, COBOL copybooks, Fortran subroutines) and extracts structured business logic, calculation formulas, and validation heuristics — focusing on business intent over syntax.',
     domain: 'Domain C · Extract Business Rules',
   },
   A7: {
@@ -69,28 +69,28 @@ export const AGENT_REGISTRY: Record<string, AgentMetaData> = {
     id: 'A9',
     name: 'Domain Decomposition Agent',
     role: 'Microservice Domain Architect',
-    definition: 'Applies Domain-Driven Design (DDD) to decompose monolithic legacy estates into decoupled domain microservices.',
+    definition: 'Applies Domain-Driven Design (DDD) to decompose monolithic legacy estates into decoupled domain microservices — proposing service boundaries from measured dependencies.',
     domain: 'Domain D · Design Target Code',
   },
   A10: {
     id: 'A10',
-    name: 'Data Lineage & Migration Agent',
-    role: 'Enterprise Data Engineer & ETL Specialist',
-    definition: 'Maps legacy SAS datasets and DB2 tables to modern PostgreSQL/Snowflake data stores and generates automated ETL pipelines.',
+    name: 'Target Architecture Agent',
+    role: 'Cloud Solutions & Systems Architect',
+    definition: 'Designs target microservices, containerization blueprints, cloud infrastructure, modern API contracts, and database schema mappings.',
     domain: 'Domain D · Design Target Code',
   },
   A11: {
     id: 'A11',
-    name: 'Code Transpilation Agent',
-    role: 'Automated Code Conversion Lead',
-    definition: 'Transpiles legacy code (SAS/COBOL/Fortran) into modern target languages (Python/Java) preserving 100% logic fidelity.',
+    name: 'Data Modernization Agent',
+    role: 'Database & Data Modernization Architect',
+    definition: 'Modernizes legacy database schemas, stored procedures, data pipelines, and cutover strategies (dual-write, CDC, event streaming) preserving 100% data fidelity.',
     domain: 'Domain E · Transform & Build',
   },
   A12: {
     id: 'A12',
-    name: 'Code Refactoring Agent',
-    role: 'Software Quality & Clean Code Specialist',
-    definition: 'Refactors raw transpiled code into PEP8 modular functions, reducing cyclomatic complexity and improving maintainability.',
+    name: 'Code Generation Agent',
+    role: 'Code Generation & Service Transpiler Specialist',
+    definition: 'Generates new target microservices from approved architecture blueprints and extracted business rules with 100% logic fidelity.',
     domain: 'Domain E · Transform & Build',
   },
   A13: {
@@ -102,23 +102,23 @@ export const AGENT_REGISTRY: Record<string, AgentMetaData> = {
   },
   A14: {
     id: 'A14',
-    name: 'Security & Compliance Agent',
-    role: 'Application Security Specialist',
-    definition: 'Scans target codebase for OWASP Top 10 vulnerabilities, NIST compliance, license issues, and hardcoded secrets.',
+    name: 'Test Generation Agent',
+    role: 'Automated Test & Quality Assurance Specialist',
+    definition: 'Generates pytest unit test suites, regression test cases, and integration mocks for modernized target microservices.',
     domain: 'Domain E · Transform & Build',
   },
   A15: {
     id: 'A15',
-    name: 'Deployment & Packaging Agent',
-    role: 'DevOps & Release Engineer',
-    definition: 'Builds Docker containers, Kubernetes manifests, Helm charts, and CI/CD pipelines for cloud deployment.',
-    domain: 'Domain E · Transform & Build',
+    name: 'Failure Triage Agent',
+    role: 'Observability & Root Cause Analysis Lead',
+    definition: 'Analyzes test execution failures, regression logs, stack traces, and observability signals to categorize root causes with 100% diagnostic accuracy.',
+    domain: 'Domain E · Test & Prove It Works',
   },
   A16: {
     id: 'A16',
-    name: 'Integration & API Agent',
-    role: 'Enterprise API Architect',
-    definition: 'Connects target microservices to API Gateways, Kafka event buses, and enterprise authentication providers.',
+    name: 'Self-Healing Agent',
+    role: 'Autonomous Remediation & Repair Specialist',
+    definition: 'Applies bounded code fixes from automated triage diagnoses and escalates to human engineers when attempt thresholds are reached.',
     domain: 'Domain E · Transform & Build',
   },
   A17: {
@@ -130,9 +130,9 @@ export const AGENT_REGISTRY: Record<string, AgentMetaData> = {
   },
   A18: {
     id: 'A18',
-    name: 'Final Showcase Agent',
-    role: 'Client Deliverable Specialist',
-    definition: 'Compiles the executive modernization comparison report card, SOW compliance proof, and final client export pack.',
+    name: 'Security & Compliance Agent',
+    role: 'Security & Release Engineering Specialist',
+    definition: 'Runs vulnerability scans, OWASP Top 10 compliance audits, and drives gradual traffic handover with automatic rollback triggers.',
     domain: 'Domain F · Verify & Package',
   },
   G0: {
@@ -158,31 +158,31 @@ export const AGENT_REGISTRY: Record<string, AgentMetaData> = {
   },
   G3: {
     id: 'G3',
-    name: 'Gate G3 · Target Architecture Sign-Off',
-    role: 'Chief Cloud Architect & Security Lead',
-    definition: 'Human governance checkpoint approving microservice blueprints, database migration models, and API contracts before code generation.',
-    domain: 'Domain D · Design Target Code',
+    name: 'Gate G3 · Code Quality Sign-Off',
+    role: 'Engineering Lead & Quality Gatekeeper',
+    definition: 'Human governance checkpoint approving generated code, unit test coverage, and service implementation before refactoring and integration.',
+    domain: 'Domain E · Transform & Build',
   },
   G4: {
     id: 'G4',
-    name: 'Gate G4 · Transpiled Code Review',
-    role: 'Lead Software Development Engineer',
-    definition: 'Human governance checkpoint evaluating automated transpilation output, code modularization, and PEP8 clean code quality.',
+    name: 'Gate G4 · Automated Test Approval Gate',
+    role: 'QA Lead & Test Governance Specialist',
+    definition: 'Evaluates generated test suites, rule coverage metrics, edge case assertions, and test rigor prior to side-by-side equivalence testing.',
     domain: 'Domain E · Transform & Build',
   },
   G5: {
     id: 'G5',
-    name: 'Gate G5 · Security & Compliance Audit',
-    role: 'Chief Information Security Officer (CISO)',
-    definition: 'Human governance checkpoint reviewing vulnerability scans, OWASP Top 10 compliance, and license audits before staging.',
-    domain: 'Domain E · Transform & Build',
+    name: 'Gate G5 · Equivalence & Parity Verification Gate',
+    role: 'QA Director & Business Audit Lead',
+    definition: 'Human governance checkpoint validating 100.0% mathematical equivalence match on production data workloads prior to security auditing.',
+    domain: 'Domain F · Verify & Package',
   },
   G6: {
     id: 'G6',
-    name: 'Gate G6 · Deployment & CI/CD Staging',
-    role: 'DevOps & Infrastructure Director',
-    definition: 'Human governance checkpoint approving Docker images, Kubernetes manifests, and deployment pipeline configuration.',
-    domain: 'Domain E · Transform & Build',
+    name: 'Gate G6 · Security & Compliance Audit Gate',
+    role: 'Chief Information Security Officer (CISO)',
+    definition: 'Human governance checkpoint reviewing vulnerability scans, OWASP Top 10 compliance, and license audits before staging.',
+    domain: 'Domain F · Verify & Package',
   },
   G7: {
     id: 'G7',
@@ -208,49 +208,49 @@ interface AgentHeaderProps {
 
 export function AgentHeaderBanner({ agentId, customTitle, contextTag }: AgentHeaderProps) {
   const meta = useMemo(() => {
-    return (
-      AGGREGATE_META(agentId) || {
-        id: agentId,
-        name: customTitle || `Agent ${agentId}`,
-        role: 'Modernization Specialist',
-        definition: 'Executes modernization tasks within the AI Modernization Factory pipeline.',
-        domain: 'AI Modernization Pipeline',
-      }
-    )
+    return AGGREGATE_META(agentId) || {
+      id: agentId || 'A1',
+      name: customTitle || 'Modernization Agent',
+      role: 'Enterprise Strategy & Engineering Specialist',
+      definition: 'Executes modernization factory tasks with full semantic alignment to locked intake goals.',
+      domain: 'Modernization Pipeline',
+    }
   }, [agentId, customTitle])
+
+  const isGate = (agentId || '').toUpperCase().startsWith('G')
 
   return (
     <div
       className="agent-header-banner"
       style={{
-        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
-        border: '1px solid rgba(43, 184, 166, 0.45)',
-        borderRadius: '10px',
-        padding: '16px 20px',
-        marginBottom: '16px',
-        boxShadow: '0 4px 18px rgba(0,0,0,0.4)',
+        background: isGate
+          ? 'linear-gradient(135deg, rgba(26, 20, 10, 0.95), rgba(40, 30, 15, 0.9))'
+          : 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
+        border: isGate
+          ? '1px solid rgba(245, 158, 11, 0.45)'
+          : '1px solid rgba(56, 189, 248, 0.35)',
+        borderRadius: '6px',
+        padding: '6px 12px',
+        marginBottom: '6px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
       }}
     >
-      <div className="mf-category-caption" style={{ color: '#2dd4bf', marginBottom: '8px', borderBottom: '1px solid rgba(43, 184, 166, 0.3)' }}>
-        🎯 1. AGENT IDENTITY &amp; EXECUTIVE ROLE
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span
             style={{
               background: 'linear-gradient(90deg, #2dd4bf, #0284c7)',
               color: '#0f172a',
-              fontSize: '11px',
+              fontSize: '10px',
               fontWeight: 900,
-              padding: '2px 8px',
+              padding: '1px 6px',
               borderRadius: '4px',
               letterSpacing: '0.05em',
             }}
           >
             {meta.id}
           </span>
-          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>{meta.domain}</span>
+          <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 700 }}>{meta.domain}</span>
         </div>
 
         {contextTag && (
@@ -259,10 +259,10 @@ export function AgentHeaderBanner({ agentId, customTitle, contextTag }: AgentHea
               background: 'rgba(56, 189, 248, 0.15)',
               color: '#38bdf8',
               border: '1px solid rgba(56, 189, 248, 0.3)',
-              fontSize: '10px',
+              fontSize: '9.5px',
               fontWeight: 800,
-              padding: '2px 8px',
-              borderRadius: '12px',
+              padding: '1px 6px',
+              borderRadius: '10px',
             }}
           >
             {contextTag}
@@ -270,25 +270,25 @@ export function AgentHeaderBanner({ agentId, customTitle, contextTag }: AgentHea
         )}
       </div>
 
-      <h2 style={{ fontSize: '18px', fontWeight: 900, color: '#f8fafc', margin: '0 0 4px', letterSpacing: '-0.01em' }}>
-        🤖 {meta.name}
+      <h2 style={{ fontSize: '13.5px', fontWeight: 900, color: isGate ? '#fbbf24' : '#f8fafc', margin: '0 0 2px', letterSpacing: '-0.01em' }}>
+        {isGate ? `🛡️ ${meta.name}` : `🤖 ${meta.name}`}
       </h2>
 
-      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '6px' }}>
-        <div style={{ flex: '1 1 300px' }}>
-          <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>
-            AGENT ROLE &amp; PERSONA
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+        <div style={{ flex: '1 1 240px', background: isGate ? 'rgba(245, 158, 11, 0.08)' : 'rgba(56, 189, 248, 0.08)', padding: '5px 8px', borderRadius: '5px', border: isGate ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(56, 189, 248, 0.25)' }}>
+          <span style={{ fontSize: '9.5px', color: isGate ? '#fbbf24' : '#38bdf8', textTransform: 'uppercase', fontWeight: 900, letterSpacing: '0.08em' }}>
+            {isGate ? '🛡️ HUMAN GATE ROLE & OVERSIGHT' : '🤖 AGENT ROLE & PERSONA'}
           </span>
-          <p style={{ fontSize: '12px', color: '#2dd4bf', fontWeight: 700, margin: '2px 0 0' }}>
+          <p style={{ fontSize: '11.5px', color: isGate ? '#fef08a' : '#2dd4bf', fontWeight: 700, margin: '2px 0 0' }}>
             {meta.role}
           </p>
         </div>
 
-        <div style={{ flex: '2 1 400px' }}>
-          <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>
-            AGENT DEFINITION &amp; OBJECTIVE
+        <div style={{ flex: '2 1 320px', background: isGate ? 'rgba(245, 158, 11, 0.08)' : 'rgba(56, 189, 248, 0.08)', padding: '5px 8px', borderRadius: '5px', border: isGate ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(56, 189, 248, 0.25)' }}>
+          <span style={{ fontSize: '9.5px', color: isGate ? '#fbbf24' : '#38bdf8', textTransform: 'uppercase', fontWeight: 900, letterSpacing: '0.08em' }}>
+            {isGate ? '📋 GATE DEFINITION & GOVERNANCE OBJECTIVE' : '🎯 AGENT DEFINITION & OBJECTIVE'}
           </span>
-          <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '2px 0 0', lineHeight: '1.4' }}>
+          <p style={{ fontSize: '11.5px', color: '#cbd5e1', margin: '2px 0 0', lineHeight: '1.35' }}>
             {meta.definition}
           </p>
         </div>

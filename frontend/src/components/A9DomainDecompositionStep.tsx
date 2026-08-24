@@ -48,11 +48,7 @@ const FALLBACK_CHECKS: ChecklistItem[] = [
   { id: 'order_ok', label: 'Confirm strangler / slice order is safe for production', required: true },
 ]
 
-function truncate(text: string, n = 160): string {
-  const t = text.trim()
-  if (t.length <= n) return t
-  return `${t.slice(0, n - 1)}…`
-}
+
 
 function fmt(n: number): string {
   return n.toLocaleString()
@@ -129,19 +125,7 @@ export function A9DomainDecompositionStep({
     return activeLang || '—'
   }, [brief, activeLang])
 
-  const cleanedPriorLine = useMemo(() => {
-    if (!brief?.prior_line) return ''
-    let line = brief.prior_line
-    if (activeLang && activeLang.toUpperCase() !== 'COBOL') {
-      line = line
-        .replace(/\bCOBOL monolith\b/gi, `${activeLang} monolith`)
-        .replace(/\bCOBOL system\b/gi, `${activeLang} system`)
-        .replace(/\bCOBOL codebase\b/gi, `${activeLang} codebase`)
-        .replace(/\bCOBOL code\b/gi, `${activeLang} code`)
-        .replace(/\bCOBOL\b/gi, activeLang)
-    }
-    return line
-  }, [brief, activeLang])
+
 
   const cleanedDecompositionPlan = useMemo(() => {
     if (!brief?.decomposition_plan) return ''
@@ -160,7 +144,6 @@ export function A9DomainDecompositionStep({
   const [isEditingPage, setIsEditingPage] = useState(false)
   const [customLangPath, setCustomLangPath] = useState('')
   const [customDecompPlan, setCustomDecompPlan] = useState('')
-  const [customContinuityLine, setCustomContinuityLine] = useState('')
 
   useEffect(() => {
     setCustomLangPath(`${sourceLangDisplay}${brief?.target_stack_hint ? ` → ${brief.target_stack_hint}` : ''}`)
@@ -169,10 +152,6 @@ export function A9DomainDecompositionStep({
   useEffect(() => {
     if (cleanedDecompositionPlan) setCustomDecompPlan(cleanedDecompositionPlan)
   }, [cleanedDecompositionPlan])
-
-  useEffect(() => {
-    if (cleanedPriorLine) setCustomContinuityLine(cleanedPriorLine)
-  }, [cleanedPriorLine])
 
   const checklist: ChecklistItem[] = useMemo(() => {
     const source = brief?.checklist?.length ? brief.checklist : FALLBACK_CHECKS
@@ -307,6 +286,14 @@ export function A9DomainDecompositionStep({
 
   const canRun = Boolean(shape) && Boolean(order) && !briefLoading
 
+  function applySuggested() {
+    const targetShape = brief?.suggested_shape || 'modular'
+    const targetOrder = brief?.suggested_order || 'safe'
+    setShape(targetShape)
+    setOrder(targetOrder)
+    setRunComplete(false)
+  }
+
   async function runAgent() {
     if (!canRun) return
     setBusy(true)
@@ -384,134 +371,134 @@ export function A9DomainDecompositionStep({
     }
   }
 
-  const title = brief?.title || 'Domain decomposition'
-  const lede =
-    brief?.lede ||
-    'Proposes service or module boundaries from measured dependencies and approved rules — foundational for strangler/slice strategies.'
-  const formHeading = brief?.form_heading || 'Set the decomposition shape'
-  const kicker = brief?.domain_kicker || 'Domain D · Design & build the new · Step A9'
   const shownContexts = contexts.length ? contexts : brief?.proposed_contexts || []
   const shownMetrics = metrics.length ? metrics : brief?.metrics || []
-  const projectCard = a1Context.requirement
-    ? truncate(a1Context.requirement, 140)
-    : a1Context.projectName
 
   return (
     <div className="a9-step a10-step a7-step a1-wizard mf-req">
-      <p className="dash-kicker">{kicker}</p>
-      <h2 className="dash-title">{briefLoading ? 'Domain decomposition' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Personalizing this step from your Factory Administrator (A1) context, path map, and prior discovery…'
-          : lede}
-      </p>
-
-      <section className="a2-a1-context" aria-label="A1 path and prior context">
-        <div className="a2-a1-context-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h4>Domain Level Intake &amp; Context Matrix</h4>
-            <span className="a2-a1-lock">Semantic continuity</span>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isEditingPage ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                color: isEditingPage ? '#facc15' : '#4ade80',
+                border: isEditingPage ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+              }}
+            >
+              {!isEditingPage ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
           </div>
+
           <button
             type="button"
-            className="landing-ghost"
-            style={{ fontSize: '11px', padding: '3px 10px', color: isEditingPage ? '#2dd4bf' : '#94a3b8', borderColor: isEditingPage ? '#2dd4bf' : 'rgba(255,255,255,0.2)' }}
             onClick={() => setIsEditingPage(!isEditingPage)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: !isEditingPage ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: !isEditingPage ? '#38bdf8' : '#4ade80',
+              border: !isEditingPage ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
           >
-            {isEditingPage ? '✓ Lock Page Information' : '✏️ Edit Page Information'}
+            {!isEditingPage ? '✏️ Edit Context' : '🔒 Lock & Save'}
           </button>
         </div>
-        <p className="dash-sub a2-a1-intro">
-          Shape, checklist, and proposed pieces stay close to the locked A1 combination, the active
-          movement path, and discovery outputs ahead of G2 approval. You can audit or edit any text below before running this agent.
-        </p>
-        <dl className="a2-a1-grid">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div>
-            <dt>From A1</dt>
-            <dd>{a1Context.categoryName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {a1Context.categoryName}
+            </span>
           </div>
+
           <div>
-            <dt>Strategy</dt>
-            <dd>{a1Context.strategyShort}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {a1Context.projectName}
+            </span>
           </div>
+
           <div>
-            <dt>Project</dt>
-            <dd>{projectCard}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {a1Context.strategyShort}
+            </span>
           </div>
+
           <div>
-            <dt>Map status</dt>
-            <dd>
-              {brief?.path_active_ids?.includes('A9')
-                ? 'Active · on path'
-                : brief?.path_active_ids?.length
-                  ? 'Path loaded'
-                  : '—'}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR AGENT
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              {brief?.prior_agent_id ? `${brief.prior_agent_id} · ${brief.prior_agent_name || ''}` : 'G1 · Discovery Approval'}
+            </span>
           </div>
+
           <div>
-            <dt>Prior step</dt>
-            <dd>
-              {brief?.prior_agent_id
-                ? `${brief.prior_agent_id} · ${brief.prior_agent_name || ''}`
-                : 'G1 · Discovery Approval'}
-              {brief?.g1_approved ? ' · approved' : ''}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              LANGUAGE PATH
+            </span>
+            {isEditingPage ? (
+              <input
+                type="text"
+                value={customLangPath}
+                onChange={(e) => setCustomLangPath(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            ) : (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#38bdf8' }}>
+                {customLangPath || `${sourceLangDisplay}${brief?.target_stack_hint ? ` → ${brief.target_stack_hint}` : ''}`}
+              </span>
+            )}
           </div>
-          <div>
-            <dt>Language path</dt>
-            <dd>
-              {isEditingPage ? (
-                <input
-                  type="text"
-                  value={customLangPath}
-                  onChange={(e) => setCustomLangPath(e.target.value)}
-                  style={{ background: 'rgba(15,23,42,0.95)', border: '1px solid #2dd4bf', color: '#2dd4bf', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', width: '100%', fontWeight: 700 }}
-                />
-              ) : (
-                customLangPath || `${sourceLangDisplay}${brief?.target_stack_hint ? ` → ${brief.target_stack_hint}` : ''}`
-              )}
-            </dd>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {a1Context.requirement || 'Modernizing legacy application estate.'}
+            </span>
           </div>
-          <div>
-            <dt>Approved rules</dt>
-            <dd>{fmt(brief?.approved_rule_count ?? 0)}</dd>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              DECOMPOSITION PLAN
+            </span>
+            {isEditingPage ? (
+              <textarea
+                rows={2}
+                value={customDecompPlan}
+                onChange={(e) => setCustomDecompPlan(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            ) : (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {customDecompPlan || cleanedDecompositionPlan || 'Proposes service or module boundaries from measured dependencies.'}
+              </span>
+            )}
           </div>
-          <div>
-            <dt>Programs</dt>
-            <dd>{fmt(brief?.programs ?? 0)}</dd>
-          </div>
-          <div className="a2-a1-span">
-            <dt>Decomposition plan</dt>
-            <dd>
-              {isEditingPage ? (
-                <textarea
-                  rows={2}
-                  value={customDecompPlan}
-                  onChange={(e) => setCustomDecompPlan(e.target.value)}
-                  style={{ background: 'rgba(15,23,42,0.95)', border: '1px solid #2dd4bf', color: '#e2e8f0', padding: '6px 10px', borderRadius: '4px', fontSize: '12px', width: '100%' }}
-                />
-              ) : (
-                customDecompPlan || cleanedDecompositionPlan
-              )}
-            </dd>
-          </div>
-          <div className="a2-a1-span">
-            <dt>Continuity</dt>
-            <dd>
-              {isEditingPage ? (
-                <textarea
-                  rows={2}
-                  value={customContinuityLine}
-                  onChange={(e) => setCustomContinuityLine(e.target.value)}
-                  style={{ background: 'rgba(15,23,42,0.95)', border: '1px solid #2dd4bf', color: '#e2e8f0', padding: '6px 10px', borderRadius: '4px', fontSize: '12px', width: '100%' }}
-                />
-              ) : (
-                customContinuityLine || cleanedPriorLine
-              )}
-            </dd>
-          </div>
-        </dl>
-        {brief?.warning ? <p className="dash-sub a2-warn">{brief.warning}</p> : null}
+        </div>
       </section>
 
       {!runComplete ? (
@@ -520,93 +507,98 @@ export function A9DomainDecompositionStep({
             items={checklist}
             checked={checked}
             disabled={briefLoading || busy}
-            title={brief?.checklist_heading || 'Operator checklist (optional)'}
+            title={brief?.checklist_heading || 'OPTIONAL / MANDATORY VERIFICATION CHECKLIST'}
             note={
               (brief?.checklist_note ||
-                'Checklist items combine the step’s standard controls with your A1 category, requirement, strategy, and the agent & gate map combination.') +
-              ' These do not block Run — confirm them when useful, or use Confirm all.'
+                'Checklist items combine standard controls with your A1 category, requirement, and strategy.') +
+              ' Confirm each mandatory item before running decomposition.'
             }
             onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
           />
-          {checklist.length > 0 && (
-            <div className="dash-run-row">
+
+          {/* 2. EXECUTION CONTROLS & DECOMPOSITION LENS (Single rich compact card) */}
+          <section className="a9-execution-card" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                ⚙️ EXECUTION CONTROLS &amp; DECOMPOSITION LENS
+              </h4>
               <button
                 type="button"
-                className="landing-ghost"
-                disabled={briefLoading || busy}
-                onClick={() => {
-                  const next: Record<string, boolean> = {}
-                  for (const item of checklist) next[item.id] = true
-                  setChecked(next)
-                }}
+                className="landing-ghost a3-suggest-btn"
+                style={{ padding: '3px 8px', fontSize: '11px' }}
+                onClick={applySuggested}
               >
-                Confirm all checklist items
+                Apply LLM suggestions
               </button>
             </div>
-          )}
 
-          <h3 className="a4-form-heading">{formHeading}</h3>
-          {brief?.shape_hint ? <p className="dash-sub">{brief.shape_hint}</p> : null}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+                  {brief?.shape_label || 'What shape should the new system be?'}
+                </span>
+                <div className="a3-pills" role="radiogroup" aria-label="System shape" style={{ gap: '4px' }}>
+                  {shapeOpts.map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`a3-pill${shape === id ? ' on' : ''}`}
+                      aria-pressed={shape === id}
+                      onClick={() => {
+                        setShape(id)
+                        setRunComplete(false)
+                      }}
+                      disabled={briefLoading}
+                      style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.shape_label || 'What shape should the new system be?'}</h4>
-            <div className="a3-pills" role="radiogroup" aria-label="System shape">
-              {shapeOpts.map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`a3-pill${shape === id ? ' on' : ''}`}
-                  aria-pressed={shape === id}
-                  onClick={() => {
-                    setShape(id)
-                    setRunComplete(false)
-                  }}
-                  disabled={briefLoading}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="a4-form-card a6-form-card">
-            <h4>{brief?.order_label || 'Which piece should we build first?'}</h4>
-            {brief?.order_hint ? <p className="dash-sub">{brief.order_hint}</p> : null}
-            <div className="a3-pills" role="radiogroup" aria-label="Build order">
-              {orderOpts.map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`a3-pill${order === id ? ' on' : ''}`}
-                  aria-pressed={order === id}
-                  onClick={() => {
-                    setOrder(id)
-                    setRunComplete(false)
-                  }}
-                  disabled={briefLoading}
-                >
-                  {label}
-                </button>
-              ))}
+              <div>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px' }}>
+                  {brief?.order_label || 'Which piece should we build first?'}
+                </span>
+                <div className="a3-pills" role="radiogroup" aria-label="Build order" style={{ gap: '4px' }}>
+                  {orderOpts.map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`a3-pill${order === id ? ' on' : ''}`}
+                      aria-pressed={order === id}
+                      onClick={() => {
+                        setOrder(id)
+                        setRunComplete(false)
+                      }}
+                      disabled={briefLoading}
+                      style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 
           {shownContexts.length > 0 ? (
-            <section className="a9-preview" aria-label="Proposed pieces preview">
-              <h4>Proposed pieces (preview)</h4>
-              <p className="dash-sub">
+            <section className="a9-preview" aria-label="Proposed pieces preview" style={{ padding: '10px 14px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+              <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#38bdf8', margin: '0 0 4px' }}>Proposed pieces (preview)</h4>
+              <p className="dash-sub" style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 6px' }}>
                 LLM-shaped from A1 continuity — finalized when you run this agent.
                 {buildFirst || brief?.build_first_label
                   ? ` First slice: ${buildFirst || brief?.build_first_label}.`
                   : ''}
               </p>
-              <ul>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {shownContexts.map((c) => (
-                  <li key={c.name}>
-                    <strong>{c.name}</strong>
-                    <span>{c.description}</span>
+                  <li key={c.name} style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '11.5px' }}>
+                    <strong style={{ color: '#38bdf8', marginRight: '6px' }}>{c.name}</strong>
+                    <span style={{ color: '#cbd5e1' }}>{c.description}</span>
                     {c.replaces?.length ? (
-                      <em>replaces {c.replaces.join(', ')}</em>
+                      <em style={{ color: '#94a3b8', marginLeft: '6px', fontSize: '10.5px' }}>replaces {c.replaces.join(', ')}</em>
                     ) : null}
                   </li>
                 ))}
@@ -616,73 +608,136 @@ export function A9DomainDecompositionStep({
 
           {error ? <p className="err">{error}</p> : null}
 
-          <div className="dash-run-row">
+          <div className="dash-run-row" style={{ marginBottom: '10px' }}>
             <button
               className="landing-start"
               type="button"
               onClick={() => void runAgent()}
               disabled={!canRun || busy}
+              style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
             >
-              {busy ? 'Decomposing…' : done ? 'Run again' : '▶ Run this agent'}
+              {busy ? 'Decomposing…' : done ? '▶ Run this agent again' : '▶ Run domain decomposition'}
             </button>
           </div>
         </>
       ) : (
-        <section className="a5-results a9-results" aria-label="Domain decomposition results">
-          <div className="a5-results-banner">
-            <h3>
-              {resultHeadline ||
-                brief?.result_headline ||
-                'This is a proposal. A person decides at the next gate.'}
+        <section
+          className="a5-results a9-results"
+          aria-label="Domain decomposition results"
+          style={{
+            padding: '12px 16px',
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '8px',
+            marginTop: '12px',
+          }}
+        >
+          {/* Header Banner */}
+          <div style={{ marginBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '8px' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>
+              📊 DOMAIN DECOMPOSITION &amp; BOUNDED CONTEXT PROPOSAL
             </h3>
-            <p>{resultBody || brief?.result_body || ''}</p>
+            <p style={{ fontSize: '11.5px', color: '#cbd5e1', margin: 0, lineHeight: '1.4' }}>
+              {resultHeadline || brief?.result_headline || 'Domain decomposition complete — proposed boundaries ready for target architecture.'}
+            </p>
+            {resultBody || brief?.result_body ? (
+              <p style={{ fontSize: '11px', color: '#94a3b8', margin: '4px 0 0', lineHeight: '1.3' }}>
+                {resultBody || brief?.result_body}
+              </p>
+            ) : null}
           </div>
 
+          {/* 4-Metric Grid (Clean Cards) */}
           {shownMetrics.length > 0 ? (
-            <div className="a5-metric-grid">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '8px',
+                marginBottom: '12px',
+              }}
+            >
               {shownMetrics.map((m) => (
-                <div key={m.id} className="a5-metric">
-                  <span className="a5-metric-label">{m.label}</span>
-                  <strong className="a5-metric-value">{formatMetric(m)}</strong>
+                <div
+                  key={m.id}
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span style={{ fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                    {m.label}
+                  </span>
+                  <strong style={{ fontSize: '15px', fontWeight: 800, color: '#f8fafc' }}>
+                    {formatMetric(m)}
+                  </strong>
                 </div>
               ))}
             </div>
           ) : null}
 
+          {/* Bounded Contexts List */}
           {shownContexts.length > 0 ? (
-            <div className="a9-service-list">
-              <h4>Bounded contexts</h4>
-              <ul>
+            <div style={{ marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '11.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 6px' }}>
+                BOUNDED CONTEXTS
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {shownContexts.map((c) => (
-                  <li key={c.name}>
+                  <div
+                    key={c.name}
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.5)',
+                      padding: '8px 10px',
+                      borderRadius: '5px',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
                     <div>
-                      <strong>{c.name}</strong>
-                      <span>{c.description}</span>
-                      {c.replaces?.length ? (
-                        <em>replaces {c.replaces.join(', ')}</em>
-                      ) : null}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                        <strong style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>{c.name}</strong>
+                        {c.replaces?.length ? (
+                          <span style={{ fontSize: '10px', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '3px' }}>
+                            replaces {c.replaces.join(', ')}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#cbd5e1', display: 'block' }}>{c.description}</span>
                     </div>
-                    <div className="a9-scores">
-                      <span>cohesion {(c.cohesion ?? 0).toFixed(2)}</span>
-                      <span>coupling {(c.coupling ?? 0).toFixed(2)}</span>
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                        cohesion {(c.cohesion ?? 0).toFixed(2)}
+                      </span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                        coupling {(c.coupling ?? 0).toFixed(2)}
+                      </span>
                     </div>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
               {(buildFirst || brief?.build_first_label) && (
-                <p className="dash-sub">
-                  First piece to build: <strong>{buildFirst || brief?.build_first_label}</strong>
+                <p style={{ fontSize: '11px', color: '#94a3b8', margin: '6px 0 0' }}>
+                  First piece to build: <strong style={{ color: '#38bdf8' }}>{buildFirst || brief?.build_first_label}</strong>
                 </p>
               )}
             </div>
           ) : null}
 
+          {/* Activity log */}
           {log.length > 0 ? (
-            <div className="a5-log">
-              <h4>Activity</h4>
-              <ul>
+            <div style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '8px 10px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.05)', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '10.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', margin: '0 0 4px' }}>AGENT ACTIVITY LOG</h4>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {log.map((line, i) => (
-                  <li key={`${line[0]}-${i}`} className={`log-${line[0]}`}>
+                  <li key={`${line[0]}-${i}`} style={{ fontSize: '10.5px', fontFamily: 'monospace', color: line[0] === 'error' ? '#f87171' : line[0] === 'warn' ? '#facc15' : line[0] === 'ok' ? '#4ade80' : '#94a3b8' }}>
                     {line[1]}
                   </li>
                 ))}
@@ -690,19 +745,21 @@ export function A9DomainDecompositionStep({
             </div>
           ) : null}
 
-          <div className="dash-run-row">
+          {/* Controls & Next Agent Move Forward Button */}
+          <div className="dash-run-row" style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
               className="landing-ghost"
               type="button"
               onClick={() => {
                 setRunComplete(false)
               }}
+              style={{ fontSize: '11.5px', padding: '6px 12px' }}
             >
               Adjust &amp; run again
             </button>
             {onContinueNext ? (
-              <button className="landing-start" type="button" onClick={onContinueNext}>
-                {continueLabel || 'Continue to next step →'}
+              <button className="landing-start" type="button" onClick={onContinueNext} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+                {continueLabel || '▶ Move Forward to A10: Data Lineage & Migration Agent →'}
               </button>
             ) : null}
           </div>

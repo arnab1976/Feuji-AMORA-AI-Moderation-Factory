@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type A2Brief, type LogLine, type StepBrief } from '../api/client'
+import { validateRepoLocation } from '../utils/repositoryValidator'
 import type { PathMapIntakeSnapshot } from './AgentGateMapStep'
 import type { ActivityPayload, GlossaryTerm } from './A1IntakeWizard'
-import { ChecklistPanel, allRequiredChecked } from './ChecklistPanel'
+import { ChecklistPanel } from './ChecklistPanel'
 
 interface Props {
   runId: string
@@ -66,6 +67,38 @@ export function A2PortfolioStep({
   const [runComplete, setRunComplete] = useState(false)
   const [log, setLog] = useState<LogLine[]>([])
   const [assessment, setAssessment] = useState('')
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+  const [customRegulatoryText, setCustomRegulatoryText] = useState('')
+  const [validationNotice, setValidationNotice] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
+
+  async function validateRepository() {
+    const loc = codeLocation.trim()
+    const clientRes = validateRepoLocation(loc)
+    if (!clientRes.isValid) {
+      setValidationNotice({
+        type: 'err',
+        message: clientRes.message,
+      })
+      return
+    }
+
+    try {
+      const serverRes = await api.validateRepo(loc, undefined, a1Context.categoryId)
+      setValidationNotice({
+        type: serverRes.is_valid ? 'ok' : 'err',
+        message: serverRes.message,
+      })
+    } catch {
+      setValidationNotice({
+        type: clientRes.isValid ? 'ok' : 'err',
+        message: clientRes.message,
+      })
+    }
+  }
 
   const critOpts = brief?.criticality_options?.length ? brief.criticality_options : FALLBACK_CRIT
   const regOpts =
@@ -102,6 +135,21 @@ export function A2PortfolioStep({
       why,
     }
   }, [intake, stepBrief])
+
+  useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
 
   useEffect(() => {
     let cancelled = false
@@ -247,10 +295,6 @@ export function A2PortfolioStep({
 
   const checklistItems = brief?.checklist?.length ? brief.checklist : (stepBrief?.checklist || [])
   const noneOfTheseChecked = Boolean(checked.none_of_these)
-  const checklistReady = useMemo(
-    () => allRequiredChecked(checklistItems, checked),
-    [checklistItems, checked],
-  )
 
   const canRun = formReady
 
@@ -263,16 +307,6 @@ export function A2PortfolioStep({
     if (!regulations.length) return 'Select at least one control obligation.'
     return ''
   }, [briefLoading, codeLocation, criticality, regulations])
-
-  function checkAllChecklist() {
-    if (!checklistItems.length) return
-    const next: Record<string, boolean> = {}
-    for (const item of checklistItems) {
-      if (item.id !== 'none_of_these') next[item.id] = true
-    }
-    setChecked(next)
-    setChecklistManualNote('')
-  }
 
   function toggleChecklist(id: string, value: boolean) {
     setChecked((prev) => {
@@ -367,11 +401,6 @@ export function A2PortfolioStep({
     }
   }
 
-  const title = brief?.title || 'Portfolio intake'
-  const lede =
-    brief?.lede ||
-    'Looks at your portfolio of old systems and helps decide which ones to modernize first — shaped by the Factory Administrator selections you locked in A1.'
-  const formHeading = brief?.form_heading || 'Tell us about your application estate'
   const primaryLabel = brief?.primary_label || 'Where does the old code live?'
   const primaryPlaceholder =
     brief?.primary_placeholder || 'https://git.example.com/legacy/core-system.git'
@@ -380,54 +409,138 @@ export function A2PortfolioStep({
 
   return (
     <div className="a2-step a1-wizard mf-req">
-      <p className="dash-kicker">Domain A · Factory setup · Step A2</p>
-      <h2 className="dash-title">{briefLoading ? 'Portfolio intake' : title}</h2>
-      <p className="dash-lede">
-        {briefLoading
-          ? 'Personalizing this step from your Factory Administrator (A1) context combination…'
-          : lede}
-      </p>
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <section className="a2-a1-context" aria-label="Factory Administrator context">
-        <div className="a2-a1-context-head">
-          <h4>Domain Level Intake &amp; Context Matrix</h4>
-          <span className="a2-a1-lock">Locked from intake</span>
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
-        <p className="dash-sub a2-a1-intro">
-          Portfolio fields below are shaped by this combination. Category, strategy, title, and
-          why-modernize stay fixed — A2 only ranks the estate.
-        </p>
-        <dl className="a2-a1-grid">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div>
-            <dt>Category</dt>
-            <dd>{a1Context.categoryName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Application / title</dt>
-            <dd>{a1Context.projectName}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Requirement / trend</dt>
-            <dd>{a1Context.requirement ? truncate(a1Context.requirement, 160) : '—'}</dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
           </div>
+
           <div>
-            <dt>Strategy</dt>
-            <dd>
-              {a1Context.strategies.length > 1
-                ? a1Context.strategies.join(' · ')
-                : a1Context.strategyShort}
-            </dd>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR AGENT
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              A1 · Factory administrator
+            </span>
           </div>
-          {a1Context.why ? (
-            <div className="a2-a1-why">
-              <dt>Why modernize</dt>
-              <dd>{truncate(a1Context.why, 220)}</dd>
-            </div>
-          ) : null}
-        </dl>
-        {brief?.context_line ? (
-          <p className="a2-context-chip">{brief.context_line}</p>
-        ) : null}
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CONTINUITY
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              Portfolio fields below are shaped by this locked intake context. A2 ranks the estate for downstream agents.
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Modernizing legacy application estate.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
+          </div>
+        </div>
       </section>
 
       {stepBrief && (
@@ -435,10 +548,10 @@ export function A2PortfolioStep({
           <ChecklistPanel
             items={checklistItems}
             checked={checked}
-            title={brief?.checklist_heading || 'Operator checklist (optional)'}
+            title={brief?.checklist_heading || 'OPTIONAL VERIFICATION CHECKLIST'}
             note={
-              (brief?.checklist_note || stepBrief?.note || 'Optional checks tailored from A1 context.') +
-              ' These do not block Run — confirm them when useful, or use Confirm all.'
+              (brief?.checklist_note || stepBrief?.note || 'These items are optional and tailored from A1 to ensure proper handling.') +
+              ' These do not block Run — confirm them when useful, or use Click All Mandatory Checklist Items.'
             }
             onToggle={toggleChecklist}
           />
@@ -458,50 +571,88 @@ export function A2PortfolioStep({
               />
             </div>
           )}
-          {!checklistReady && checklistItems.length > 0 && (
-            <div className="dash-run-row a2-check-all-row">
-              <button type="button" className="landing-ghost" onClick={checkAllChecklist}>
-                Confirm all checklist items
-              </button>
-            </div>
-          )}
         </>
       )}
 
-      <section className="dash-cat-panel a2-form-panel">
-        <h5 className="dash-cat-heading">{formHeading}</h5>
-        <p className="dash-sub">
-          Same intake pattern as Factory Administrator — location, criticality, and controls —
-          personalized for <strong>{a1Context.categoryName}</strong>.
+      {/* 2. EXECUTION CONTROLS & ESTATE FORM (Single rich compact card) */}
+      <section className="dash-cat-panel a2-form-panel" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>
+          ⚙️ EXECUTION CONTROLS &amp; ESTATE DISCOVERY
+        </h4>
+        <p className="dash-sub" style={{ fontSize: '11px', margin: '0 0 8px', color: '#94a3b8' }}>
+          Intake pattern personalized for <strong>{a1Context.categoryName}</strong>.
         </p>
-        {briefLoading && (
-          <p className="dash-empty">Personalizing labels from A1… you can fill the fields now.</p>
-        )}
 
-        <div className="a1-custom-fields">
+        <div className="a1-custom-fields" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div className="fld dash-fld">
-            <label htmlFor="a2-code-location">{primaryLabel}</label>
-            {brief?.primary_hint && (
-              <p className="dash-sub a2-field-hint">{brief.primary_hint}</p>
+            <label htmlFor="a2-code-location" style={{ fontSize: '11.5px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px', display: 'block' }}>{primaryLabel}</label>
+            <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '6px', padding: '6px 10px', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
+                💡 Acceptable Inputs: Git Repository URL (e.g. https://github.com/org/repo.git), Web Crawler URL, Local File Path / Directory, Raw Code Snippet (Copy-Paste), or IDE Extension Workspace.
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                id="a2-code-location"
+                type="text"
+                value={codeLocation}
+                onChange={(e) => {
+                  setCodeLocation(e.target.value)
+                  setValidationNotice(null)
+                  setRunComplete(false)
+                }}
+                placeholder={primaryPlaceholder}
+                style={{ flex: 1, background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '6px 10px', borderRadius: '4px', fontSize: '12px' }}
+              />
+              <button
+                type="button"
+                className="landing-start"
+                onClick={validateRepository}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '11.5px',
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                  background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(14, 165, 233, 0.35))',
+                  border: '1px solid #38bdf8',
+                  color: '#38bdf8',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: '0 2px 8px rgba(56, 189, 248, 0.25)',
+                }}
+              >
+                🔍 Validate the Repository
+              </button>
+            </div>
+
+            {validationNotice && (
+              <div
+                style={{
+                  marginTop: '6px',
+                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  background: validationNotice.type === 'ok' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  border: validationNotice.type === 'ok' ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                  color: validationNotice.type === 'ok' ? '#4ade80' : '#f87171',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>{validationNotice.message}</span>
+              </div>
             )}
-            <input
-              id="a2-code-location"
-              type="text"
-              value={codeLocation}
-              onChange={(e) => {
-                setCodeLocation(e.target.value)
-                setRunComplete(false)
-              }}
-              placeholder={primaryPlaceholder}
-            />
           </div>
 
-          <div className="mf-strategy-block">
-            <h4>{critLabel}</h4>
-            <p className="dash-sub">Select one level — this drives portfolio ranking order.</p>
-            <div className="a1-options a2-crit-opts">
+          <div className="mf-strategy-block" style={{ marginBottom: '6px' }}>
+            <h4 style={{ fontSize: '11.5px', fontWeight: 700, color: '#f8fafc', margin: '0 0 2px' }}>{critLabel}</h4>
+            <p className="dash-sub" style={{ fontSize: '10.5px', margin: '0 0 6px', color: '#94a3b8' }}>Select one level — this drives portfolio ranking order.</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {critOpts.map(([v, l]) => (
-                <label key={v} className={`a1-opt${criticality === v ? ' on' : ''}`}>
+                <label key={v} className={`a1-opt${criticality === v ? ' on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '4px', background: criticality === v ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)', border: criticality === v ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)', cursor: 'pointer', fontSize: '11.5px' }}>
                   <input
                     type="radio"
                     name="a2-criticality"
@@ -511,43 +662,55 @@ export function A2PortfolioStep({
                       setRunComplete(false)
                     }}
                   />
-                  <span>{l}</span>
+                  <span style={{ color: criticality === v ? '#38bdf8' : '#cbd5e1', fontWeight: criticality === v ? 700 : 400 }}>{l}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          <div className="mf-strategy-block">
-            <h4>{consLabel}</h4>
-            <p className="dash-sub">
+          <div className="mf-strategy-block" style={{ marginBottom: '6px' }}>
+            <h4 style={{ fontSize: '11.5px', fontWeight: 700, color: '#f8fafc', margin: '0 0 2px' }}>{consLabel}</h4>
+            <p className="dash-sub" style={{ fontSize: '10.5px', margin: '0 0 6px', color: '#94a3b8' }}>
               Select all that apply, or None / not sure — shaped by your A1 category.
             </p>
-            <div className="a1-options a2-reg-opts">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: regulations.includes('other') ? '6px' : '0' }}>
               {regOpts.map(([v, l]) => (
-                <label key={v} className={`a1-opt${regulations.includes(v) ? ' on' : ''}`}>
+                <label key={v} className={`a1-opt${regulations.includes(v) ? ' on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '4px', background: regulations.includes(v) ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)', border: regulations.includes(v) ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)', cursor: 'pointer', fontSize: '11.5px' }}>
                   <input
                     type="checkbox"
                     checked={regulations.includes(v)}
                     onChange={() => toggleReg(v)}
                   />
-                  <span>{l}</span>
+                  <span style={{ color: regulations.includes(v) ? '#38bdf8' : '#cbd5e1', fontWeight: regulations.includes(v) ? 700 : 400 }}>{l}</span>
                 </label>
               ))}
             </div>
+            {regulations.includes('other') && (
+              <div style={{ marginTop: '6px' }}>
+                <input
+                  type="text"
+                  value={customRegulatoryText}
+                  onChange={(e) => setCustomRegulatoryText(e.target.value)}
+                  placeholder="Specify country / domain regulatory obligation (e.g., HIPAA - USA, APRA - Australia, BaFin - Germany, RBI - India)"
+                  style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 8px', borderRadius: '4px', fontSize: '11.5px' }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="fld dash-fld">
-            <label htmlFor="a2-notes">Portfolio notes (optional)</label>
+            <label htmlFor="a2-notes" style={{ fontSize: '11.5px', fontWeight: 700, color: '#f8fafc', marginBottom: '2px', display: 'block' }}>Portfolio notes (optional)</label>
             <textarea
               id="a2-notes"
               className="a1-custom"
-              rows={3}
+              rows={2}
               value={notes}
               onChange={(e) => {
                 setNotes(e.target.value)
                 setRunComplete(false)
               }}
               placeholder="Anything else the portfolio ranking should weigh — owners, freeze windows, known hotspots…"
+              style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#f8fafc', padding: '4px 8px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
             />
           </div>
         </div>
@@ -555,14 +718,15 @@ export function A2PortfolioStep({
 
       {error && <p className="err">{error}</p>}
 
-      <div className="dash-run-row">
+      <div className="dash-run-row" style={{ marginBottom: '10px' }}>
         <button
           className="landing-start"
           type="button"
           disabled={!canRun || busy}
           onClick={() => void runAgent()}
+          style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
         >
-          {busy ? 'Running…' : done || runComplete ? '▶ Run the agent again' : '▶ Run the agent'}
+          {busy ? 'Running…' : done || runComplete ? '▶ Run the agent again' : '▶ Run estate discovery agent'}
         </button>
         {!canRun && blockerHint && (
           <span className="dash-sub a2-blocker-hint">{blockerHint}</span>
@@ -601,7 +765,7 @@ export function A2PortfolioStep({
               </div>
               <div>
                 <dt>{consLabel}</dt>
-                <dd>{regulations.map((r) => optLabel(regOpts, r)).join(', ')}</dd>
+                <dd>{regulations.map((r) => optLabel(regOpts, r)).join(', ')}{customRegulatoryText.trim() ? ` (${customRegulatoryText.trim()})` : ''}</dd>
               </div>
               {notes.trim() ? (
                 <div>
@@ -626,9 +790,9 @@ export function A2PortfolioStep({
               ))}
             </ul>
           )}
-          <div className="a1-just-did-actions">
-            <button className="landing-start" type="button" onClick={() => onContinueNext?.()}>
-              {continueLabel || 'Continue to next step →'}
+          <div className="a1-just-did-actions" style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button className="landing-start" type="button" onClick={() => onContinueNext?.()} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+              {continueLabel || '▶ Move Forward to A3: Technical Standards Agent →'}
             </button>
             <span className="a1-step-badge">✓ Step complete</span>
           </div>

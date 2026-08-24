@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type A18Brief, type LogLine } from '../api/client'
 import type { PathMapIntakeSnapshot } from './AgentGateMapStep'
 import type { ActivityPayload } from './A1IntakeWizard'
+import { ChecklistPanel } from './ChecklistPanel'
 
 interface Props {
   runId: string
@@ -31,7 +32,6 @@ export function A18SecurityReleaseStep({
   continueLabel,
 }: Props) {
   const [brief, setBrief] = useState<A18Brief | null>(null)
-  const [briefLoading, setBriefLoading] = useState(true)
   const [plan, setPlan] = useState('slow')
   const [rollbackOnErrors, setRollbackOnErrors] = useState(true)
   const [checked, setChecked] = useState<Record<string, boolean>>({})
@@ -42,15 +42,17 @@ export function A18SecurityReleaseStep({
   const [resultHeadline, setResultHeadline] = useState('')
   const [resultBody, setResultBody] = useState('')
 
+  const [isContextLocked, setIsContextLocked] = useState(true)
+  const [editCategory, setEditCategory] = useState('')
+  const [editProject, setEditProject] = useState('')
+  const [editStrategy, setEditStrategy] = useState('')
+  const [editRequirement, setEditRequirement] = useState('')
+
   const a1Context = useMemo(() => {
-    const catName = intake?.category_name || intake?.category_id || '1. Legacy source-code data'
-    const projName =
-      intake?.project_name ||
-      'Convert old Fortran code to new Java based code. The business context or the outcome should be similar'
-    const req =
-      intake?.requirement ||
-      'Modernizing the legacy Fortran code to Java is essential to enhance system performance, maintainability, and scalability.'
-    const strat = intake?.strategy_short || intake?.strategies?.[0] || 'Incremental Refactoring Approach'
+    const catName = intake?.category_name || intake?.category_id || '—'
+    const projName = intake?.project_name || '—'
+    const req = intake?.requirement || ''
+    const strat = intake?.strategy_short || intake?.strategies?.[0] || '—'
     return {
       categoryName: catName,
       projectName: projName,
@@ -60,8 +62,22 @@ export function A18SecurityReleaseStep({
   }, [intake])
 
   useEffect(() => {
+    if (!editCategory && a1Context.categoryName && a1Context.categoryName !== '—') {
+      setEditCategory(a1Context.categoryName)
+    }
+    if (!editProject && a1Context.projectName && a1Context.projectName !== '—') {
+      setEditProject(a1Context.projectName)
+    }
+    if (!editStrategy && a1Context.strategyShort && a1Context.strategyShort !== '—') {
+      setEditStrategy(a1Context.strategyShort)
+    }
+    if (!editRequirement && a1Context.requirement) {
+      setEditRequirement(a1Context.requirement)
+    }
+  }, [a1Context])
+
+  useEffect(() => {
     let cancelled = false
-    setBriefLoading(true)
     setError(null)
     setRunComplete(done)
     setLog([])
@@ -90,7 +106,6 @@ export function A18SecurityReleaseStep({
       .then((r) => {
         if (cancelled) return
         setBrief(r)
-        setBriefLoading(false)
         if (r.suggested_plan) {
           setPlan(r.suggested_plan)
         }
@@ -115,7 +130,6 @@ export function A18SecurityReleaseStep({
       })
       .catch(() => {
         if (cancelled) return
-        setBriefLoading(false)
       })
 
     return () => {
@@ -194,21 +208,6 @@ export function A18SecurityReleaseStep({
     ]
   }, [brief?.checklist, a1Context])
 
-  const checkedCount = Object.values(checked).filter(Boolean).length
-  const allChecked = checkedCount === checklistItems.length
-
-  function toggleAll() {
-    if (allChecked) {
-      setChecked({})
-    } else {
-      const next: Record<string, boolean> = {}
-      checklistItems.forEach((item) => {
-        next[item.id] = true
-      })
-      setChecked(next)
-    }
-  }
-
   async function runAgent() {
     setBusy(true)
     setError(null)
@@ -259,225 +258,308 @@ export function A18SecurityReleaseStep({
     }
   }
 
-  const categoryDisplay = brief?.cards?.from_a1 || a1Context.categoryName
-  const strategyDisplay = brief?.cards?.strategy || a1Context.strategyShort
-  const projectDisplay = brief?.cards?.project || a1Context.projectName
-
   return (
-    <div className="a18-step step-page-content">
-      {/* Top Breadcrumb Header */}
-      <div className="a18-top-meta">
-        <span className="a18-breadcrumb">
-          DOMAIN F · RELEASE SAFELY · AGENT A18 · ACTIVE · ON PATH
-        </span>
-      </div>
+    <div className="a18-step step-page-content mf-req">
+      {/* 1. DOMAIN LEVEL INTAKE & CONTEXT MATRIX (Single flat card, captioned, editable/lockable) */}
+      <section className="a2-a1-context" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '0 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              🌐 DOMAIN LEVEL INTAKE &amp; CONTEXT MATRIX
+            </h4>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: isContextLocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                color: isContextLocked ? '#4ade80' : '#facc15',
+                border: isContextLocked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(234, 179, 8, 0.3)',
+              }}
+            >
+              {isContextLocked ? '🔒 LOCKED' : '✏️ EDITABLE'}
+            </span>
+          </div>
 
-      <h1 className="a18-main-title">
-        Security and release {briefLoading ? <span className="a18-loading-badge">Loading LLM context…</span> : null}
-      </h1>
-      <p className="a18-lede">
-        Runs security scans and drives gradual traffic handover with automatic rollback triggers.
-      </p>
-
-      {/* 4 Cards Header Matching Snapshot */}
-      <div className="a18-cards-grid">
-        <div className="a18-card">
-          <span className="a18-card-label">FROM A1</span>
-          <h3 className="a18-card-value">{categoryDisplay}</h3>
+          <button
+            type="button"
+            onClick={() => setIsContextLocked(!isContextLocked)}
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '4px 10px',
+              borderRadius: '5px',
+              background: isContextLocked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isContextLocked ? '#38bdf8' : '#4ade80',
+              border: isContextLocked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isContextLocked ? '✏️ Edit Context' : '🔒 Lock & Save'}
+          </button>
         </div>
 
-        <div className="a18-card">
-          <span className="a18-card-label">STRATEGY</span>
-          <h3 className="a18-card-value">{strategyDisplay}</h3>
-        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', background: 'rgba(15, 23, 42, 0.45)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              CATEGORY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editCategory || a1Context.categoryName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
 
-        <div className="a18-card">
-          <span className="a18-card-label">PROJECT</span>
-          <h3 className="a18-card-value">{projectDisplay}</h3>
-        </div>
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              APPLICATION / TITLE
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editProject || a1Context.projectName}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editProject}
+                onChange={(e) => setEditProject(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
 
-        <div className="a18-card a18-card-map">
-          <span className="a18-card-label">MAP STATUS</span>
-          <div className="a18-map-circle-wrap">
-            <span className="a18-map-status-text">Active · on path</span>
-            <div className="a18-map-bg-circle" />
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              STRATEGY
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+                {editStrategy || a1Context.strategyShort}
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={editStrategy}
+                onChange={(e) => setEditStrategy(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '3px 6px', borderRadius: '4px', fontSize: '11.5px' }}
+              />
+            )}
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              PRIOR STEP
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#cbd5e1' }}>
+              G5 · Equivalence &amp; Parity Gate
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              MOVEMENT PATH
+            </span>
+            <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+              {brief?.movement_path || 'G5 Equivalence -> A18 Security -> G6 Security Gate'}
+            </span>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '2px' }}>
+            <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              REQUIREMENT / TREND
+            </span>
+            {isContextLocked ? (
+              <span style={{ fontSize: '11.5px', fontWeight: 500, color: '#cbd5e1', lineHeight: '1.4' }}>
+                {editRequirement || a1Context.requirement || 'Security vulnerability scans & automated traffic handover with rollback safety net.'}
+              </span>
+            ) : (
+              <textarea
+                rows={2}
+                value={editRequirement}
+                onChange={(e) => setEditRequirement(e.target.value)}
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #38bdf8', color: '#f8fafc', padding: '4px 6px', borderRadius: '4px', fontSize: '11.5px', fontFamily: 'inherit' }}
+              />
+            )}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Operator Checklist (Optional) Section */}
-      <div className="a18-checklist-box">
-        <div className="a18-checklist-header">
-          <div className="a18-checklist-title-group">
-            <h3 className="a18-checklist-title">OPERATOR CHECKLIST (OPTIONAL)</h3>
-            <p className="a18-checklist-note">
-              Checklist items combine the step&apos;s standard controls with your A1 category, requirement, strategy, and the agent &amp; gate map combination. These do not block Run — confirm them when useful, or use Confirm all.
+      {/* 2. VERIFICATION CHECKLIST */}
+      <ChecklistPanel
+        title={(brief as Record<string, unknown> | null)?.checklist_heading as string || 'OPTIONAL / MANDATORY VERIFICATION CHECKLIST'}
+        items={checklistItems.map((c) => ({ id: c.id, label: c.label, required: c.required ?? true }))}
+        checked={checked}
+        note={(brief as Record<string, unknown> | null)?.checklist_note as string || 'Confirm each security & compliance control before launching SAST/DAST scans and traffic switch.'}
+        onToggle={(id, value) => setChecked((p) => ({ ...p, [id]: value }))}
+      />
+
+      {/* 3. EXECUTION CONTROLS & TRAFFIC HANDOVER LENS (Form controls REMAIN VISIBLE post-execution) */}
+      <section className="a18-section" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '8px', margin: '10px 0 10px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            ⚙️ EXECUTION CONTROLS &amp; TRAFFIC HANDOVER LENS
+          </h4>
+          <button
+            type="button"
+            className="landing-ghost a3-suggest-btn"
+            style={{ padding: '3px 10px', fontSize: '11px' }}
+            onClick={() => setPlan(brief?.suggested_plan || 'slow')}
+          >
+            Apply LLM suggestions
+          </button>
+        </div>
+
+        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 8px' }}>
+          Configure traffic handover pace and automatic rollback triggers for production cutover:
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+          <div>
+            <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
+              HANDOVER PACE
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {[
+                { id: 'slow', label: 'Very careful (1% → 100% over 2 wks)' },
+                { id: 'normal', label: 'Normal (5% → 100% over 4 days)' },
+                { id: 'fast', label: 'Fast (10% then 100% in 1 day)' },
+              ].map((opt) => {
+                const isSel = plan === opt.id
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setPlan(opt.id)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '11.5px',
+                      fontWeight: isSel ? 700 : 400,
+                      borderRadius: '4px',
+                      background: isSel ? 'rgba(56, 189, 248, 0.25)' : 'rgba(15, 23, 42, 0.6)',
+                      border: isSel ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: isSel ? '#38bdf8' : '#cbd5e1',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
+              AUTOMATIC ROLLBACK TRIGGER
+            </span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(15, 23, 42, 0.6)', padding: '6px 10px', borderRadius: '4px', border: rollbackOnErrors ? '1px solid #4ade80' : '1px solid rgba(255,255,255,0.1)' }}>
+              <input
+                type="checkbox"
+                checked={rollbackOnErrors}
+                onChange={(e) => setRollbackOnErrors(e.target.checked)}
+              />
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: rollbackOnErrors ? '#4ade80' : '#cbd5e1' }}>
+                Auto-rollback if error rate exceeds 0.01% (Recommended)
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {error && <div style={{ fontSize: '11.5px', color: '#f87171', background: 'rgba(239,68,68,0.15)', padding: '6px 10px', borderRadius: '4px', margin: '0 0 8px' }}>{error}</div>}
+
+        <div className="dash-run-row a3-run-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            className="landing-start"
+            disabled={busy}
+            onClick={runAgent}
+            style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}
+          >
+            {busy ? 'Running security scans and arming release stages…' : '▶ Run Agent A18 (Security & Compliance Specialist)'}
+          </button>
+
+          {runComplete && (
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              ✓ Security Audit &amp; Release Schedule Complete
+            </span>
+          )}
+        </div>
+      </section>
+
+      {/* 4. IN-PLACE OUTPUT & RELEASE BLUEPRINT (Renders below form controls) */}
+      {runComplete && (
+        <section className="a18-results-panel" style={{ padding: '10px 14px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: '8px', margin: '10px 0 0 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+              📊 SECURITY AUDIT OUTPUT &amp; RELEASE BLUEPRINT
+            </h4>
+            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+              A18 OUTPUT READY
+            </span>
+          </div>
+
+          {resultHeadline && (
+            <p style={{ fontSize: '11.5px', color: '#cbd5e1', margin: '0 0 4px', fontWeight: 600 }}>
+              {resultHeadline}
             </p>
-          </div>
-          <button
-            type="button"
-            className={`a18-checklist-count-btn ${allChecked ? 'all-done' : ''}`}
-            onClick={toggleAll}
-          >
-            {checkedCount}/{checklistItems.length} complete
-          </button>
-        </div>
+          )}
+          {resultBody && (
+            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 10px' }}>
+              {resultBody}
+            </p>
+          )}
 
-        <div className="a18-checklist-items">
-          {checklistItems.map((item) => {
-            const isChecked = Boolean(checked[item.id])
-            return (
-              <label
-                key={item.id}
-                className={`a18-checklist-item ${isChecked ? 'checked' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={(e) =>
-                    setChecked((prev) => ({ ...prev, [item.id]: e.target.checked }))
-                  }
-                />
-                <span className="a18-checklist-item-text">{item.label}</span>
-              </label>
-            )
-          })}
-        </div>
-
-        <div className="a18-checklist-footer-action">
-          <button
-            type="button"
-            className="a18-confirm-all-btn"
-            onClick={toggleAll}
-          >
-            Confirm all checklist items
-          </button>
-        </div>
-      </div>
-
-      {/* Set Up This Step — You Decide Controls */}
-      <div className="a18-setup-section">
-        <h3 className="a18-setup-header">SET UP THIS STEP — YOU DECIDE</h3>
-
-        {/* Handover Pace Section */}
-        <div className="a18-control-card">
-          <h4 className="a18-control-heading">HOW FAST SHOULD WE HAND OVER?</h4>
-          <div className="a18-plan-buttons-list" role="radiogroup" aria-label="Handover speed">
-            {[
-              {
-                id: 'slow',
-                label: 'Very careful — 1%, 5%, 20%, 50%, 100% over two weeks',
-              },
-              {
-                id: 'normal',
-                label: 'Normal — 5%, 25%, 100% over four days',
-              },
-              {
-                id: 'fast',
-                label: 'Fast — 10% then everything, in one day',
-              },
-            ].map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`a18-plan-btn ${plan === p.id ? 'active' : ''}`}
-                onClick={() => setPlan(p.id)}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Automatic Rollback Section */}
-        <div className="a18-control-card">
-          <h4 className="a18-control-heading">WHEN SHOULD IT SWITCH BACK AUTOMATICALLY?</h4>
-          <label className={`a18-rollback-checkbox-card ${rollbackOnErrors ? 'active' : ''}`}>
-            <input
-              type="checkbox"
-              checked={rollbackOnErrors}
-              onChange={(e) => setRollbackOnErrors(e.target.checked)}
-            />
-            <div className="a18-rollback-lbl-group">
-              <strong className="a18-rollback-title">IF ERRORS RISE ABOVE NORMAL</strong>
-              <span className="a18-rollback-badge">STRONGLY RECOMMENDED</span>
+          {/* Metric Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase' }}>SAST / DAST VULNERABILITIES</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#4ade80' }}>0 Critical / High</span>
             </div>
-          </label>
-        </div>
-      </div>
-
-      {error ? (
-        <div className="a18-error-banner">
-          <p>{error}</p>
-        </div>
-      ) : null}
-
-      {/* Action Bar */}
-      <div className="a18-actions-bar">
-        <button
-          type="button"
-          className="a18-run-btn"
-          onClick={runAgent}
-          disabled={busy}
-        >
-          {busy ? <span className="a18-spinner" /> : null}
-          {busy
-            ? 'Running security scans and arming release stages…'
-            : runComplete
-              ? 'Run Security and Release Agent again'
-              : 'Run Security and Release Agent'}
-        </button>
-
-        {runComplete && onContinueNext ? (
-          <button
-            type="button"
-            className="a18-continue-btn"
-            onClick={onContinueNext}
-          >
-            {continueLabel || 'Continue to next step →'}
-          </button>
-        ) : null}
-      </div>
-
-      {/* Execution Results & Terminal Output */}
-      {log.length > 0 ? (
-        <div className="a18-section a18-results-section">
-          <h3 className="a18-section-title">Security &amp; Release Execution Results</h3>
-          {resultHeadline ? <h4 className="a18-result-headline">{resultHeadline}</h4> : null}
-          {resultBody ? <p className="a18-result-body">{resultBody}</p> : null}
-
-          <div className="a18-metrics-strip">
-            <div className="a18-metric">
-              <span>Security Posture</span>
-              <strong className="green">Clean (0 Vulnerabilities)</strong>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#38bdf8', textTransform: 'uppercase' }}>OWASP TOP 10 AUDIT</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#38bdf8' }}>100% Compliant</span>
             </div>
-            <div className="a18-metric">
-              <span>Handover Schedule</span>
-              <strong className="teal">1% → 5% → 20% → 50% → 100%</strong>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(45, 212, 191, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#2dd4bf', textTransform: 'uppercase' }}>LICENSE AUDIT</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#2dd4bf' }}>MIT / Apache Clean</span>
             </div>
-            <div className="a18-metric">
-              <span>Rollback Triggers</span>
-              <strong className="green">Armed &amp; Active</strong>
+            <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(34, 197, 94, 0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+              <span style={{ display: 'block', fontSize: '9.5px', fontWeight: 900, color: '#4ade80', textTransform: 'uppercase' }}>CANARY ROLLBACK</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: '#4ade80' }}>Armed &amp; Active</span>
             </div>
           </div>
 
-          <div className="a18-terminal-box">
-            <div className="a18-terminal-header">
-              <span>A18 · Security Scanner &amp; Traffic Switch Controller</span>
-            </div>
-            <ul className="a18-terminal-logs">
+          {/* Log Stream */}
+          <div className="a18-terminal-box" style={{ maxHeight: '120px', overflowY: 'auto', background: '#090d16', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '10px' }}>
+            <ul className="a18-terminal-logs" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {log.map(([level, msg], idx) => (
-                <li key={`${idx}-${msg}`} className={`a18-log-line ${level}`}>
-                  <span className="a18-log-icon">
-                    {level === 'ok' ? '✓' : level === 'warn' ? '⚠' : level === 'hl' ? '★' : 'ℹ'}
-                  </span>
-                  <span className="a18-log-msg">{msg}</span>
+                <li key={`${idx}-${msg}`} style={{ fontSize: '11px', lineHeight: '1.4', color: level === 'ok' ? '#4ade80' : level === 'warn' ? '#facc15' : '#cbd5e1' }}>
+                  <span style={{ opacity: 0.7 }}>[{level.toUpperCase()}]</span> {msg}
                 </li>
               ))}
             </ul>
           </div>
-        </div>
-      ) : null}
+
+          {/* Move Forward Action Button */}
+          <div className="dash-run-row a3-run-row a10-continue-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+            {onContinueNext ? (
+              <button className="landing-start" type="button" onClick={onContinueNext} style={{ fontSize: '12.5px', fontWeight: 800, padding: '8px 16px' }}>
+                {continueLabel || '▶ Move Forward to G6: Security & Compliance Audit Gate →'}
+              </button>
+            ) : null}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

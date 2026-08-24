@@ -1123,6 +1123,11 @@ export const api = {
       `/runs/${runId}/intake/synthesize`,
       { method: 'POST', body: JSON.stringify(body) },
     ),
+  validateRepo: (urls: string[] | string, techName?: string, categoryId?: string) =>
+    req<{ is_valid: boolean; message: string; invalid_line?: string }>(`/validate-repo`, {
+      method: 'POST',
+      body: JSON.stringify({ urls, tech_name: techName, category_id: categoryId }),
+    }),
   a2Brief: (runId: string) =>
     req<A2Brief>(`/runs/${runId}/agents/A2/brief`, { method: 'POST', body: '{}' }),
   a3Brief: (runId: string) =>

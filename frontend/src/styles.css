@@ -1,30 +1,31 @@
 :root {
-  /* High-tech executive dashboard â€” deep navy */
-  --bg: #0b111c;
-  --bg-elevated: #0f1726;
-  --panel: #111925;
-  --panel-2: #0c121c;
-  --surface: #0e1624;
-  --border: #26344c;
-  --border-soft: rgba(38, 52, 76, 0.85);
-  --ink: #e9eef7;
-  --ink2: #a8b4c8;
-  --ink3: #7a879c;
-  --accent: #3d8bfd;
-  --accent-2: #5b9dff;
-  --warm: #e2a045;
-  --teal: #2bb8a6;
-  --ok: #3ecf8e;
-  --warn: #e2a045;
-  --stop: #e85d5d;
-  --gate: #c9a227;
-  --mcp: #6b8fd4;
-  --glass: rgba(11, 17, 28, 0.86);
-  --radius: 10px;
-  --radius-sm: 8px;
-  --radius-lg: 13px;
+  /* Best-in-class Executive Cyber Theme */
+  --bg: #070b12;
+  --bg-elevated: #0d1424;
+  --panel: rgba(15, 23, 42, 0.88);
+  --panel-2: #0a101d;
+  --surface: #0b1220;
+  --border: rgba(56, 189, 248, 0.24);
+  --border-soft: rgba(56, 189, 248, 0.15);
+  --ink: #f8fafc;
+  --ink2: #cbd5e1;
+  --ink3: #94a3b8;
+  --accent: #38bdf8;
+  --accent-2: #06b6d4;
+  --warm: #f59e0b;
+  --teal: #10b981;
+  --ok: #34d399;
+  --pink: #ec4899;
+  --warn: #f59e0b;
+  --stop: #ef4444;
+  --gate: #f59e0b;
+  --mcp: #c084fc;
+  --glass: rgba(15, 23, 42, 0.88);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 10px;
   --sidebar-w: 250px;
-  --content-max: 1240px;
+  --content-max: 1280px;
   --accent-bar: 3px;
 
   /* Typography */
@@ -32,32 +33,86 @@
   --mono: "JetBrains Mono", "SF Mono", ui-monospace, Consolas, monospace;
   --display: var(--mono);
 
-  /* Legacy aliases (keep existing class rules working) */
+  /* Legacy aliases */
   --paper: var(--bg);
   --card: var(--panel);
   --sunk: var(--surface);
   --rule: var(--border);
-  --rule2: #32445f;
+  --rule2: rgba(56, 189, 248, 0.3);
   --brand: var(--accent);
   --brand2: var(--accent-2);
-  --brand-soft: rgba(61, 139, 253, 0.12);
-  --gate-soft: rgba(201, 162, 39, 0.12);
-  --stop-soft: rgba(232, 93, 93, 0.12);
-  --ok-soft: rgba(62, 207, 142, 0.12);
-  --mcp-soft: rgba(107, 143, 212, 0.12);
+  --brand-soft: rgba(56, 189, 248, 0.12);
+  --gate-soft: rgba(245, 158, 11, 0.12);
+  --stop-soft: rgba(239, 68, 68, 0.12);
+  --ok-soft: rgba(52, 211, 153, 0.12);
+  --mcp-soft: rgba(192, 132, 252, 0.12);
   --land-bg: var(--bg);
   --land-panel: var(--panel-2);
   --land-panel-2: var(--panel);
   --land-line: var(--border);
   --land-ink: var(--ink);
   --land-muted: var(--ink2);
-  --land-accent: var(--warm);
+  --land-accent: #10b981;
   --land-teal: var(--teal);
-  --land-glow: rgba(61, 139, 253, 0.16);
-  --land-glow-warm: rgba(226, 160, 69, 0.12);
+  --land-glow: rgba(56, 189, 248, 0.18);
+  --land-glow-warm: rgba(236, 72, 153, 0.14);
 }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; }
+
+/* Global Compact Card Architecture Styles */
+.card-header-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-left: 4px solid #38bdf8;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.card-header-banner.gate-card-banner {
+  border-left-color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.card-header-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gate-card-banner .card-header-title {
+  color: #f59e0b;
+}
+.card-header-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* Compact layout spacing overrides */
+.a4-step, .a1-wizard, .a2-step, .g1-step, .gate-step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px !important;
+}
+.a4-form-card, .a2-a1-context, .chk-panel, .a1-just-did {
+  padding: 12px 16px !important;
+  margin-bottom: 10px !important;
+  border-radius: 8px !important;
+}
 body {
   background: var(--bg);
   color: var(--ink);
@@ -2485,74 +2540,74 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
 /* ---- A5 Legacy Code Analysis ---- */
 .a5-step {
   display: grid;
-  gap: 14px;
+  gap: 8px;
 }
 .a5-step .dash-lede,
 .a5-step .dash-sub,
 .a5-step .a4-field-hint,
 .a5-step .a2-a1-intro,
 .a5-step .a2-a1-grid dd {
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 11.5px;
+  line-height: 1.4;
 }
 .a5-section-kicker {
-  margin: 4px 0 0;
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  margin: 2px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--warm);
-  font-weight: 650;
+  font-weight: 700;
 }
 .a5-banner {
   border: 1px solid var(--border);
   border-left: var(--accent-bar) solid var(--warm);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 12px;
   background: linear-gradient(165deg, rgba(28, 22, 16, 0.96), rgba(12, 16, 28, 0.94));
 }
 .a5-banner strong {
   display: block;
   color: var(--warm);
-  font-size: 15px;
-  margin-bottom: 6px;
+  font-size: 13px;
+  margin-bottom: 2px;
 }
 .a5-banner p {
   margin: 0;
   color: var(--muted);
-  font-size: 12.5px;
-  line-height: 1.55;
+  font-size: 11.5px;
+  line-height: 1.4;
 }
 .a5-panels {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 8px;
 }
 .a5-panel {
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 12px;
   background: linear-gradient(165deg, rgba(14, 24, 40, 0.96), rgba(10, 14, 24, 0.94));
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 .a5-panel h4 {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #6ec8c0;
-  font-weight: 650;
+  font-weight: 700;
 }
 .a5-metrics {
   margin: 0;
   display: grid;
-  gap: 8px;
+  gap: 2px;
 }
 .a5-metrics > div {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
+  gap: 8px;
+  padding: 3px 0;
   border-top: 1px solid rgba(120, 150, 200, 0.12);
 }
 .a5-metrics > div:first-child {
@@ -2562,12 +2617,12 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
 .a5-metrics dt {
   margin: 0;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 .a5-metrics dd {
   margin: 0;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 11.5px;
   text-align: right;
   font-weight: 560;
 }
@@ -2576,7 +2631,7 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
 }
 .a5-metrics code {
   font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
-  font-size: 12px;
+  font-size: 11px;
   color: #d7e6ff;
 }
 .a5-risks {
@@ -2584,15 +2639,15 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 .a5-risk {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  border-radius: 4px;
   border: 1px solid rgba(120, 150, 200, 0.16);
   background: rgba(6, 10, 20, 0.55);
   border-left-width: 3px;
@@ -2607,20 +2662,23 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   border-left-color: #6ec8c0;
 }
 .a5-risk-sev {
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.08em;
   font-weight: 700;
   color: #f0cb9a;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
 }
 .a5-risk.sev-high .a5-risk-sev {
   color: #f3a0a8;
 }
 .a5-risk-label {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--text);
 }
 .a5-risk-places {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -2628,24 +2686,24 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 8px;
+  margin-top: 2px;
 }
 .a5-complete-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 4px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: rgba(110, 200, 192, 0.14);
   border: 1px solid rgba(110, 200, 192, 0.35);
   color: #9fe0d8;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 .a5-results {
   display: grid;
-  gap: 14px;
+  gap: 8px;
 }
 @media (max-width: 860px) {
   .a5-panels {
@@ -6519,42 +6577,42 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
    ========================================================================== */
 .g5-step {
   display: grid;
-  gap: 20px;
+  gap: 10px;
   color: #f8fafc;
 }
 .g5-top-meta {
-  margin-bottom: -8px;
+  margin-bottom: -4px;
 }
 .g5-breadcrumb {
   font-family: var(--mono, monospace);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #d97706;
 }
 .g5-main-title {
   margin: 0;
-  font-size: 2.2rem;
+  font-size: 1.4rem;
   font-weight: 800;
   color: #ffffff;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 .g5-sub-question {
-  margin: 0 0 2px;
-  font-size: 1.15rem;
+  margin: 0 0 1px;
+  font-size: 0.95rem;
   color: #94a3b8;
   font-weight: 500;
 }
 .g5-approvers-strip {
-  font-size: 13.5px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #64748b;
   margin-bottom: -2px;
 }
 .g5-protection-note {
-  margin: 0 0 4px;
-  font-size: 14px;
+  margin: 0 0 2px;
+  font-size: 11.5px;
   color: #cbd5e1;
   font-weight: 500;
 }
@@ -6563,92 +6621,85 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
 .g5-cards-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 6px;
+  gap: 8px;
+  margin-top: 2px;
 }
 .g5-card {
   background: rgba(15, 23, 42, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 20px 18px;
+  border-radius: 6px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  min-height: 180px;
+  min-height: auto;
   position: relative;
   overflow: hidden;
 }
 .g5-card-label {
   font-family: var(--mono, monospace);
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #64748b;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
 .g5-card-value {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #f8fafc;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 .g5-req-text {
-  font-size: 1.1rem;
-  line-height: 1.4;
+  font-size: 0.95rem;
+  line-height: 1.35;
 }
 .g5-card-map {
   background: #0d1525;
 }
 .g5-map-circle-wrap {
   position: relative;
-  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 .g5-map-status-text {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #d97706;
   z-index: 2;
 }
 .g5-map-bg-circle {
-  position: absolute;
-  bottom: -40px;
-  right: -20px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(180, 100, 30, 0.35) 0%, rgba(120, 60, 15, 0.15) 60%, transparent 80%);
-  pointer-events: none;
-  z-index: 1;
+  display: none;
 }
 
-/* 4 Metric Cards List */
+/* 4 Metric Cards List (2x2 Compact Grid) */
 .g5-metrics-list {
   display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 .g5-metric-card {
   background: rgba(15, 23, 42, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 18px 22px;
+  border-radius: 6px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 .g5-metric-lbl {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 700;
   color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .g5-metric-val {
   margin: 0;
-  font-size: 1.7rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: #f8fafc;
 }
@@ -7339,42 +7390,42 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
    ========================================================================== */
 .g6-step {
   display: grid;
-  gap: 20px;
+  gap: 10px;
   color: #f8fafc;
 }
 .g6-top-meta {
-  margin-bottom: -8px;
+  margin-bottom: -4px;
 }
 .g6-breadcrumb {
   font-family: var(--mono, monospace);
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #d97706;
 }
 .g6-main-title {
   margin: 0;
-  font-size: 2.2rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: #ffffff;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 .g6-sub-question {
-  margin: 0 0 2px;
-  font-size: 1.15rem;
+  margin: 0 0 1px;
+  font-size: 0.85rem;
   color: #94a3b8;
   font-weight: 500;
 }
 .g6-approvers-strip {
-  font-size: 13.5px;
+  font-size: 10.5px;
   font-weight: 600;
   color: #64748b;
-  margin-bottom: -2px;
+  margin-bottom: -1px;
 }
 .g6-protection-note {
-  margin: 0 0 4px;
-  font-size: 14px;
+  margin: 0 0 1px;
+  font-size: 10.5px;
   color: #cbd5e1;
   font-weight: 500;
 }
@@ -7383,94 +7434,98 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
 .g6-cards-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 1px;
 }
 .g6-card {
   background: rgba(15, 23, 42, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 20px 18px;
+  border-radius: 4px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  min-height: 180px;
+  min-height: auto;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 .g6-card-label {
   font-family: var(--mono, monospace);
-  font-size: 11px;
+  font-size: 7.5px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #64748b;
-  margin-bottom: 16px;
+  margin-bottom: 2px;
 }
 .g6-card-value {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: #f8fafc;
-  line-height: 1.35;
+  line-height: 1.25;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
 }
 .g6-req-text {
-  font-size: 1.1rem;
-  line-height: 1.4;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
 }
 .g6-card-map {
   background: #0d1525;
 }
 .g6-map-circle-wrap {
   position: relative;
-  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 .g6-map-status-text {
-  font-size: 1.15rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #d97706;
   z-index: 2;
 }
 .g6-map-bg-circle {
-  position: absolute;
-  bottom: -40px;
-  right: -20px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(180, 100, 30, 0.35) 0%, rgba(120, 60, 15, 0.15) 60%, transparent 80%);
-  pointer-events: none;
-  z-index: 1;
+  display: none;
 }
 
-/* 4 Metric Cards List */
+/* 4 Metric Cards List (2x2 Compact Grid) */
 .g6-metrics-list {
   display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
 }
 .g6-metric-card {
   background: rgba(15, 23, 42, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 18px 22px;
+  border-radius: 4px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1px;
 }
 .g6-metric-lbl {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 7.5px;
+  font-weight: 800;
   color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .g6-metric-val {
   margin: 0;
-  font-size: 1.7rem;
-  font-weight: 800;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: #f8fafc;
+  line-height: 1.25;
 }
 
 /* Human Gate Checklist Box */
@@ -7478,46 +7533,46 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   background: linear-gradient(170deg, rgba(15, 23, 42, 0.98), rgba(11, 17, 31, 0.95));
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-left: 3px solid #d97706;
-  border-radius: 12px;
-  padding: 20px 22px;
+  border-radius: 6px;
+  padding: 6px 10px;
   display: grid;
-  gap: 16px;
+  gap: 6px;
 }
 .g6-checklist-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: 10px;
 }
 .g6-checklist-title-group {
   max-width: 720px;
 }
 .g6-checklist-title {
-  margin: 0 0 6px;
+  margin: 0 0 1px;
   font-family: var(--mono, monospace);
-  font-size: 12px;
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #d97706;
 }
 .g6-checklist-note {
   margin: 0;
-  font-size: 13px;
+  font-size: 9.5px;
   color: #94a3b8;
-  line-height: 1.45;
+  line-height: 1.3;
 }
 .g6-checklist-counter-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 .g6-checklist-count-btn {
   font-family: var(--mono, monospace);
-  font-size: 12px;
+  font-size: 8.5px;
   font-weight: 700;
-  padding: 6px 14px;
-  border-radius: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.05);
   color: #94a3b8;
@@ -7546,21 +7601,21 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 4px 8px;
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
+  border-radius: 4px;
 }
 .g6-filter-pills {
   display: flex;
-  gap: 6px;
+  gap: 3px;
 }
 .g6-pill-btn {
-  font-size: 12px;
+  font-size: 8.5px;
   font-weight: 600;
-  padding: 5px 12px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 3px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: transparent;
   color: #94a3b8;
@@ -7579,14 +7634,14 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
 }
 .g6-quick-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
 }
 .g6-quick-btn {
-  font-size: 12px;
+  font-size: 8.5px;
   font-weight: 600;
-  padding: 5px 12px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 3px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   color: #cbd5e1;
@@ -7598,10 +7653,10 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   color: #ffffff;
 }
 .g6-opt-in-btn {
-  font-size: 12px;
+  font-size: 8.5px;
   font-weight: 700;
-  padding: 5px 14px;
-  border-radius: 6px;
+  padding: 2px 8px;
+  border-radius: 3px;
   border: 1px solid rgba(59, 130, 246, 0.4);
   background: rgba(59, 130, 246, 0.12);
   color: #60a5fa;
@@ -7620,14 +7675,14 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
 /* Checklist Items & Badges */
 .g6-checklist-items {
   display: grid;
-  gap: 8px;
+  gap: 3px;
 }
 .g6-checklist-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(11, 17, 31, 0.6);
   cursor: pointer;
@@ -7648,8 +7703,8 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   background: rgba(217, 119, 6, 0.08);
 }
 .g6-checklist-item input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
+  width: 13px;
+  height: 13px;
   accent-color: #d97706;
   cursor: pointer;
 }
@@ -7658,20 +7713,25 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  gap: 12px;
+  gap: 6px;
 }
 .g6-checklist-item-text {
-  font-size: 14px;
+  font-size: 9.5px;
   color: #e2e8f0;
   font-weight: 500;
   flex: 1;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
 }
 .g6-badge {
   font-family: var(--mono, monospace);
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -9207,3 +9267,400 @@ table.tb td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-
   font-weight: 700 !important;
   max-width: 100% !important;
 }
+
+/* ==========================================================================
+   EXECUTIVE OBSIDIAN CYBER THEME OVERRIDES & CARD ARCHITECTURE STYLING
+   ========================================================================== */
+
+/* Page Canvas Background & Radial Glows */
+body, #root, .app-root, .workspace-page, .dash-bg {
+  background-color: #060911 !important;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%) !important;
+  color: #f1f5f9 !important;
+}
+
+/* Glassmorphic Card Containers Overrides */
+.dash-card,
+.dash-step-card,
+.mf-main-card,
+.a1-wizard,
+.a2-step,
+.a3-step,
+.a4-step,
+.a5-step,
+.a6-step,
+.a7-step,
+.a8-step,
+.a9-step,
+.a10-step,
+.a11-step,
+.a12-step,
+.a13-step,
+.a14-step,
+.a15-step,
+.a16-step,
+.a17-step,
+.a18-step,
+.g0-step,
+.g1-step,
+.g2-step,
+.g3-step,
+.g4-step,
+.g5-step,
+.g6-step,
+.g7-step,
+.g8-step,
+.a4-form-card,
+.g0-policy-card,
+.g0-approver-card,
+.a2-a1-context,
+.dash-cat-panel,
+.checklist-panel {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.88)) !important;
+  border: 1px solid rgba(56, 189, 248, 0.28) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+  padding: 12px 16px !important;
+  margin-bottom: 10px !important;
+}
+
+/* Card Header Banner Utility Overrides */
+.card-header-banner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 6px 12px !important;
+  margin: 0 0 8px 0 !important;
+  border-radius: 6px !important;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.22), rgba(16, 185, 129, 0.16)) !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+  border-left: 4px solid #38bdf8 !important;
+}
+
+.card-header-banner.gate-card-banner {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(239, 68, 68, 0.16)) !important;
+  border: 1px solid rgba(245, 158, 11, 0.45) !important;
+  border-left: 4px solid #f59e0b !important;
+}
+
+.card-header-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-family: var(--mono, monospace) !important;
+  font-size: 11.5px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #38bdf8 !important;
+}
+
+.gate-card-banner .card-header-title {
+  color: #fbbf24 !important;
+}
+
+.card-header-badge {
+  font-family: var(--mono, monospace) !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  padding: 2px 8px !important;
+  border-radius: 4px !important;
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+}
+
+/* Reduced Spacing Overrides */
+.dash-main {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.step-body > * + * {
+  margin-top: 8px !important;
+}
+
+.dash-run-row {
+  margin-top: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+/* Flexible Sticky Left Sidebar for Six Work Domains */
+.mf-left-sidebar {
+  position: sticky !important;
+  top: 110px !important;
+  max-height: calc(100vh - 125px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(56, 189, 248, 0.4) rgba(15, 23, 42, 0.6) !important;
+  transition: max-height 0.2s ease, top 0.2s ease !important;
+}
+
+.mf-left-sidebar::-webkit-scrollbar {
+  width: 5px !important;
+}
+
+.mf-left-sidebar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-radius: 3px !important;
+}
+
+.mf-left-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.4) !important;
+  border-radius: 3px !important;
+}
+
+.mf-left-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.7) !important;
+}
+
+.mf-domains-card-side {
+  max-height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Compact Professional Spacing & Zero Loose Gaps Overrides */
+.dash-shell,
+.mf-attractive .dash-shell {
+  padding: 4px 8px 10px !important;
+  gap: 4px !important;
+}
+
+.dash-grid,
+.dash-grid-2,
+.mf-full-grid {
+  gap: 6px !important;
+  padding: 4px 0 8px !important;
+}
+
+.dash-main {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.agent-header-banner {
+  margin-bottom: 4px !important;
+  padding: 5px 8px !important;
+}
+
+.agent-header-banner h2 {
+  font-size: 14px !important;
+  margin: 0 0 1px 0 !important;
+}
+
+.dash-card,
+.dash-step-card,
+.mf-main-card,
+.a1-step,
+.a2-step,
+.a3-step,
+.a4-step,
+.a5-step,
+.a6-step,
+.a7-step,
+.a8-step,
+.a9-step,
+.a10-step,
+.a11-step,
+.a12-step,
+.a13-step,
+.a14-step,
+.a15-step,
+.a16-step,
+.a17-step,
+.a18-step,
+.g0-step,
+.g1-step,
+.g2-step,
+.g3-step,
+.g4-step,
+.g5-step,
+.g6-step,
+.g7-step,
+.g8-step,
+.a4-form-card,
+.g0-policy-card,
+.g0-approver-card,
+.a2-a1-context,
+.dash-cat-panel,
+.checklist-panel {
+  padding: 6px 10px !important;
+  margin-bottom: 4px !important;
+}
+
+.dash-card > * + *,
+.dash-step-card > * + *,
+.mf-main-card > * + * {
+  margin-top: 6px !important;
+}
+
+.step-body > * + * {
+  margin-top: 6px !important;
+}
+
+.dash-run-row {
+  margin-top: 6px !important;
+  margin-bottom: 6px !important;
+}
+
+.dash-cat-grid,
+.a14-kind-options {
+  gap: 6px !important;
+  margin-bottom: 8px !important;
+}
+
+.dash-cat-btn {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+}
+
+/* Compact & Smart Professional "WHAT WE JUST DID" Output Card Overrides */
+.a1-just-did {
+  margin-top: 8px !important;
+  padding: 10px 14px !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9)) !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border-left: 4px solid #38bdf8 !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.a1-just-did-title {
+  font-family: var(--mono, monospace) !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #38bdf8 !important;
+  margin: 0 0 4px 0 !important;
+}
+
+.a1-success-banner {
+  padding: 8px 12px !important;
+  margin: 0 !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+  border-radius: 6px !important;
+}
+
+.a1-success-banner strong {
+  font-size: 12.5px !important;
+  color: #4ade80 !important;
+  margin-bottom: 2px !important;
+  display: block !important;
+}
+
+.a1-success-banner p {
+  font-size: 11.5px !important;
+  color: #cbd5e1 !important;
+  margin: 0 !important;
+  line-height: 1.35 !important;
+}
+
+.a1-run-details {
+  padding: 8px 12px !important;
+  margin: 0 !important;
+  background: rgba(15, 23, 42, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 6px !important;
+}
+
+.a1-run-details h5 {
+  font-family: var(--mono, monospace) !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: #38bdf8 !important;
+  margin: 0 0 6px 0 !important;
+}
+
+.a1-run-details dl {
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.a1-run-details dl div {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 4px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.a1-run-details dt {
+  font-size: 11px !important;
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+}
+
+.a1-run-details dd {
+  font-size: 11.5px !important;
+  color: #f8fafc !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+}
+
+.a1-just-did-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-top: 6px !important;
+  padding-top: 6px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.a1-just-did-actions button.landing-start {
+  padding: 8px 16px !important;
+  font-size: 12.5px !important;
+  font-weight: 800 !important;
+  border-radius: 6px !important;
+  background: linear-gradient(90deg, #0284c7, #0d9488) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.a1-just-did-actions button.landing-start:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5) !important;
+}
+
+/* Unified Standardized Typography for Options, Radios, & Checkboxes under Captions */
+.a1-opt,
+.a1-opt span,
+.chk-panel label span,
+.a16-option-info strong,
+.a3-pill,
+.a4-form-card label span,
+.a16-section label span,
+.a17-section label span,
+.a10-option-card strong {
+  font-size: 12.5px !important;
+  line-height: 1.45 !important;
+  font-weight: 600 !important;
+}
+
+.a1-opt small,
+.a16-option-info p,
+.a3-pill-btn span,
+.chk-panel p {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+  font-weight: 400 !important;
+  color: #94a3b8 !important;
+}
+
+
